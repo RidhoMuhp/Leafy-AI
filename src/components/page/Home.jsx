@@ -1,4 +1,3 @@
-import React from "react";
 
 export default function HomePage() {
   const projects = [
@@ -26,8 +25,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      {/* Navbar */}
+    <div className="min-h-screen w-full bg-gray-950 text-white">
       <nav className="flex justify-between items-center px-8 py-6 border-b border-gray-800">
         <h1 className="text-2xl font-bold tracking-wide">
           Muhpri<span className="text-indigo-500">Dev</span>
@@ -74,7 +72,7 @@ export default function HomePage() {
       {/* Projects Section */}
       <section id="projects" className="px-8 py-20 bg-gray-900">
         <h3 className="text-3xl font-bold text-center mb-12">
-          Featured Projects
+          Playground 
         </h3>
 
         <div className="grid md:grid-cols-3 gap-8">
