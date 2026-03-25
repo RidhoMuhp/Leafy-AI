@@ -1,4 +1,4 @@
-
+import TechStack from "../ui/Tech";
 export default function HomePage() {
   const projects = [
     {
@@ -68,11 +68,11 @@ export default function HomePage() {
           </a>
         </div>
       </section>
-
+      <TechStack />
       {/* Projects Section */}
       <section id="projects" className="px-8 py-20 bg-gray-900">
         <h3 className="text-3xl font-bold text-center mb-12">
-          Playground 
+          PROJECTS 
         </h3>
 
         <div className="grid md:grid-cols-3 gap-8">
