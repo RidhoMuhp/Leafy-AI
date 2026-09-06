@@ -3,32 +3,51 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 exports.register = async (req, res) => {
-  const { nama, email, password } = req.body;
+  const { nama, email, password, role, whatsapp_number } = req.body || {};
 
-  const hashPassword = await bcrypt.hash(password, 10);
+  if (!nama || !email || !password) {
+    return res.status(400).json({
+      message: "Nama, email, dan password wajib diisi",
+    });
+  }
 
-  const sql = "INSERT INTO users (nama, email, password) VALUES (?, ?, ?)";
+  try {
+    const hashPassword = await bcrypt.hash(password, 10);
+    const userRole = role || "user";
 
-  db.query(sql, [nama, email, hashPassword], (err, result) => {
-    if (err) {
-      return res.status(500).json(err);
-    }
+    const sql =
+      "INSERT INTO users (nama, email, password, role, whatsapp_number) VALUES (?, ?, ?, ?, ?)";
 
-    res.json({
+    // Menggunakan await db.query khas mysql2/promise
+    await db.query(sql, [nama, email, hashPassword, userRole, whatsapp_number || null]);
+
+    return res.status(201).json({
       message: "Register berhasil",
     });
-  });
+  } catch (error) {
+    console.error("Error Register:", error);
+    return res.status(500).json({
+      message: "Register gagal",
+      error: error.message,
+    });
+  }
 };
 
-exports.login = (req, res) => {
-  const { email, password } = req.body;
+exports.login = async (req, res) => {
+  console.log("--> REQ BODY DITERIMA SERVER:", req.body);
+  const { email, password } = req.body || {};
 
-  const sql = "SELECT * FROM users WHERE email = ?";
+  if (!email || !password) {
+    return res.status(400).json({
+      message: "Email dan password wajib diisi",
+    });
+  }
 
-  db.query(sql, [email], async (err, result) => {
-    if (err) {
-      return res.status(500).json(err);
-    }
+  try {
+    const sql = "SELECT * FROM users WHERE email = ?";
+
+    // Destructuring [result] karena mysql2/promise mengembalikan [rows, fields]
+    const [result] = await db.query(sql, [email]);
 
     if (result.length === 0) {
       return res.status(404).json({
@@ -46,20 +65,33 @@ exports.login = (req, res) => {
       });
     }
 
+    // Single source of truth untuk JWT Payload
+    const payload = {
+      id: user.id,
+      nama: user.nama,
+      email: user.email,
+      role: user.role || "admin",
+      whatsapp_number: user.whatsapp_number || null,
+    };
+
     const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-      },
-      process.env.JWT_SECRET,
+      payload,
+      process.env.JWT_SECRET || "SUPER_SECRET_KEY",
       {
         expiresIn: "1d",
       }
     );
 
-    res.json({
+    return res.json({
       message: "Login berhasil",
       token,
+      user: payload,
     });
-  });
+  } catch (error) {
+    console.error("Error Login:", error);
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
 };

@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+node_modules/
+api/node_modules/
+api/.env
+api/auth_info_baileys/
