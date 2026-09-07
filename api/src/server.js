@@ -1,17 +1,22 @@
+require("dotenv").config();
+
 const app = require("./index");
-const { connectToWhatsApp } = require('./services/whatsappService');
 require("./config/db");
 
 const PORT = process.env.PORT || 3000;
 
-// Tambahkan kata 'async' di depan () =>
 app.listen(PORT, async () => {
-  console.log(`Server berjalan di port ${PORT}`);
+  console.log(`Leafy AI API berjalan di port ${PORT}`);
 
-  console.log("⚡ Menginisialisasi WhatsApp Bot Service...");
+  if (process.env.WHATSAPP_ENABLED !== "true") {
+    console.log("WhatsApp service dinonaktifkan.");
+    return;
+  }
+
   try {
+    const { connectToWhatsApp } = require("./services/whatsappService");
     await connectToWhatsApp();
   } catch (error) {
-    console.error("Gagal koneksi WhatsApp Bot:", error);
+    console.error("Gagal menjalankan WhatsApp:", error.message);
   }
 });

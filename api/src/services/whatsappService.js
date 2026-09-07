@@ -1,6 +1,6 @@
 const { askGroqWithDB, formatWithLlama } = require('./aiService');
 const { handleDocumentImage } = require('./ocrHandler'); // 1. Import OCR Handler
-const ParserService = require('./ParserService'); // Import ParserService untuk PDF, Word, Excel, TXT
+const ParserService = require('./parserService'); // Import ParserService untuk PDF, Word, Excel, TXT
 const { downloadContentFromMessage, makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
 const pino = require('pino');

@@ -26,3 +26,8 @@ node_modules/
 api/node_modules/
 api/.env
 api/auth_info_baileys/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
