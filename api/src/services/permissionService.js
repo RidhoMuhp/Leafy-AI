@@ -123,6 +123,64 @@ const SKILLS = Object.freeze({
       },
     },
   },
+
+  create_client: {
+    roles: ["admin", "superadmin"],
+    parameters: {
+      database_id: {
+        type: "string",
+        allowed: ["leafy_core"],
+      },
+      client_code: {
+        type: "string",
+        pattern:
+          /^[A-Za-z0-9][A-Za-z0-9_-]{0,49}$/,
+      },
+      name: {
+        type: "string",
+        pattern: /^.{1,150}$/,
+      },
+      business_type: {
+        type: "string",
+        required: false,
+        pattern: /^.{1,100}$/,
+      },
+      phone: {
+        type: "string",
+        required: false,
+        pattern: /^.{1,30}$/,
+      },
+      email: {
+        type: "string",
+        required: false,
+        pattern: /^.{3,255}$/,
+      },
+      city: {
+        type: "string",
+        required: false,
+        pattern: /^.{1,100}$/,
+      },
+      source: {
+        type: "string",
+        required: false,
+        pattern: /^.{1,100}$/,
+      },
+      status: {
+        type: "string",
+        required: false,
+        allowed: [
+          "prospect",
+          "lead",
+          "contacted",
+          "follow_up",
+        ],
+      },
+      notes: {
+        type: "string",
+        required: false,
+      },
+    },
+  },
 });
 
 const FORBIDDEN_KEYS = new Set([

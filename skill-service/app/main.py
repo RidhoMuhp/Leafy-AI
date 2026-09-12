@@ -92,12 +92,7 @@ def health(settings: Settings = Depends(get_settings)):
 def get_skills(role: str = "user"):
     try:
         skills = list_available_skills(role)
-        
-    except ClientAlreadyExistsError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Kode klien sudah digunakan",
-        ) from error
+
             
     except PermissionError as error:
         raise HTTPException(
@@ -196,6 +191,12 @@ def execute(payload: SkillRequest):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Akses skill ditolak",
         ) from error
+        
+    except ClientAlreadyExistsError as error:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Kode klien sudah digunakan",
+            ) from error
 
     except Exception as error:
         logger.exception("Skill execution failed")
