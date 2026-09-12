@@ -1,8 +1,14 @@
 from datetime import datetime, timezone
 from typing import Any
 
+from pydantic import BaseModel, ConfigDict
 
-def service_status(**_: Any) -> dict[str, Any]:
+
+class ServiceStatusParameters(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+def service_status() -> dict[str, Any]:
     return {
         "service": "leafy-skill-service",
         "status": "ready",

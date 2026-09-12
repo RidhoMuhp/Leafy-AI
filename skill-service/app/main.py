@@ -1,16 +1,46 @@
+import logging
 import secrets
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import Depends, FastAPI, Header, HTTPException, status
-from pydantic import BaseModel, Field
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.security import APIKeyHeader
+from pydantic import BaseModel, ConfigDict, Field
+from app.skills.clients import (
+    ClientAlreadyExistsError,
+    ClientNotFoundError,
+)
 
 from app.config import Settings, get_settings
-from app.registry import execute_skill, list_available_skills
+from app.registry import (
+    InvalidSkillParametersError,
+    UnknownSkillError,
+    execute_skill,
+    list_available_skills,
+)
+from app.database.errors import (
+    
+    DatabaseAccessDeniedError,
+    DatabaseConfigurationError,
+    DatabaseConnectionError,
+    TableAccessDeniedError,
+    UnknownDatabaseError,
+    UnknownTableError,
+)
+
+
+logger = logging.getLogger(__name__)
+
+internal_key_header = APIKeyHeader(
+    name="x-leafy-internal-key",
+    auto_error=False,
+)
 
 
 class SkillRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     skill: str = Field(min_length=1, max_length=100)
-    role: str = Field(default="user", max_length=30)
+    role: Literal["user", "admin", "superadmin"] = "user"
     parameters: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -21,11 +51,17 @@ class SkillResponse(BaseModel):
 
 
 def verify_internal_key(
-    x_leafy_internal_key: str = Header(default=""),
+    provided_key: str | None = Depends(internal_key_header),
     settings: Settings = Depends(get_settings),
 ) -> None:
+    if provided_key is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Internal service key tidak valid",
+        )
+
     if not secrets.compare_digest(
-        x_leafy_internal_key,
+        provided_key,
         settings.leafy_internal_key,
     ):
         raise HTTPException(
@@ -54,10 +90,25 @@ def health(settings: Settings = Depends(get_settings)):
     dependencies=[Depends(verify_internal_key)],
 )
 def get_skills(role: str = "user"):
+    try:
+        skills = list_available_skills(role)
+        
+    except ClientAlreadyExistsError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Kode klien sudah digunakan",
+        ) from error
+            
+    except PermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Role tidak diizinkan",
+        ) from error
+
     return {
         "success": True,
         "role": role,
-        "skills": list_available_skills(role),
+        "skills": skills,
     }
 
 
@@ -66,6 +117,7 @@ def get_skills(role: str = "user"):
     response_model=SkillResponse,
     dependencies=[Depends(verify_internal_key)],
 )
+
 def execute(payload: SkillRequest):
     try:
         result = execute_skill(
@@ -79,18 +131,74 @@ def execute(payload: SkillRequest):
             skill=payload.skill,
             result=result,
         )
+        
+
+    except UnknownSkillError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Skill tidak terdaftar",
+        ) from error
+
+    except InvalidSkillParametersError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Parameter skill tidak valid",
+        ) from error
+        
+    except UnknownDatabaseError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Database tidak terdaftar",
+        ) from error
+
+    except DatabaseAccessDeniedError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Akses database ditolak",
+        ) from error
+        
+    except UnknownTableError as error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Tabel tidak terdaftar",
+            ) from error
+    
+    except TableAccessDeniedError as error:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Akses tabel ditolak",
+            ) from error
+
+    except DatabaseConfigurationError as error:
+        logger.exception("Database configuration invalid")
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Konfigurasi database tidak tersedia",
+        ) from error
+
+    except DatabaseConnectionError as error:
+        logger.exception("Database connection failed")
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database tidak dapat diakses",
+        ) from error
+        
+    except ClientNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Klien tidak ditemukan",
+        ) from error
+
     except PermissionError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(error),
+            detail="Akses skill ditolak",
         ) from error
-    except (TypeError, ValueError) as error:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(error),
-        ) from error
+
     except Exception as error:
-        print(f"Skill execution error: {error}")
+        logger.exception("Skill execution failed")
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

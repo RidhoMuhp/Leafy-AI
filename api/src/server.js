@@ -1,22 +1,134 @@
-require("dotenv").config();
+const { env } = require("./config/env");
+const { createApp } = require("./index");
+const {
+  WhatsAppService,
+} = require("./whatsapp/whatsappService");
+const {
+  processMessage,
+} = require("./services/agentService");
 
-const app = require("./index");
-require("./config/db");
+const app = createApp();
 
-const PORT = process.env.PORT || 3000;
+const httpServer = app.listen(
+  env.port,
+  "127.0.0.1",
+  () => {
+    console.log(
+      `Leafy Node aktif di http://127.0.0.1:${env.port}`,
+    );
+  },
+);
 
-app.listen(PORT, async () => {
-  console.log(`Leafy AI API berjalan di port ${PORT}`);
+let whatsappService = null;
+let shuttingDown = false;
 
-  if (process.env.WHATSAPP_ENABLED !== "true") {
-    console.log("WhatsApp service dinonaktifkan.");
+async function handleWhatsAppMessage({
+  socket,
+  message,
+  identity,
+  text,
+  withTyping,
+}) {
+  if (text.toLowerCase() === "!ping") {
+    await socket.sendMessage(
+      identity.chatJid,
+      {
+        text: "Leafy AI aktif.",
+      },
+      {
+        quoted: message,
+      },
+    );
+
     return;
   }
 
-  try {
-    const { connectToWhatsApp } = require("./services/whatsappService");
-    await connectToWhatsApp();
-  } catch (error) {
-    console.error("Gagal menjalankan WhatsApp:", error.message);
+  await withTyping(async () => {
+    try {
+      const response = await processMessage({
+        senderJid: identity.senderJid,
+        text,
+      });
+
+      await socket.sendMessage(
+        identity.chatJid,
+        {
+          text: response,
+        },
+        {
+          quoted: message,
+        },
+      );
+    } catch (error) {
+      console.error(
+        "Agent processing failed:",
+        {
+          name: error.name,
+          code: error.code || "INTERNAL_ERROR",
+        },
+      );
+
+      const responseMessage =
+        error.isPublic === true
+          ? error.message
+          : "Maaf, permintaan belum dapat diproses.";
+
+      await socket.sendMessage(
+        identity.chatJid,
+        {
+          text: responseMessage,
+        },
+        {
+          quoted: message,
+        },
+      );
+    }
+  });
+}
+
+async function startWhatsApp() {
+  if (!env.whatsappEnabled) {
+    console.log("WhatsApp dinonaktifkan melalui konfigurasi.");
+    return;
   }
+
+  whatsappService = new WhatsAppService({
+    authPath: env.whatsappAuthPath,
+    onMessage: handleWhatsAppMessage,
+  });
+
+  await whatsappService.start();
+}
+
+async function shutdown(signal) {
+  if (shuttingDown) {
+    return;
+  }
+
+  shuttingDown = true;
+  console.log(`Menutup Leafy AI karena ${signal}.`);
+
+  try {
+    if (whatsappService) {
+      await whatsappService.stop();
+    }
+  } finally {
+    httpServer.close(() => {
+      process.exit(0);
+    });
+
+    setTimeout(() => {
+      process.exit(1);
+    }, 5000).unref();
+  }
+}
+
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+startWhatsApp().catch((error) => {
+  console.error(
+    "WhatsApp gagal dimulai:",
+    error.message,
+  );
 });

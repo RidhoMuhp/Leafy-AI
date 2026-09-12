@@ -1,0 +1,11 @@
+{
+  "watch": ["src"],
+  "ext": "js,json",
+  "ignore": [
+    "auth_info_baileys/**",
+    "node_modules/**",
+    "*.log"
+  ],
+  "exec": "node src/server.js",
+  "delay": 500
+}

@@ -1,24 +1,20 @@
 const express = require("express");
-const cors = require("cors");
 
-const authRoutes = require("./routes/authRoutes");
-const ingestionRoutes = require("./routes/ingestionRoutes");
-const dataRoutes = require("./routes/dataRoutes");
+function createApp() {
+  const app = express();
 
-const app = express();
+  app.disable("x-powered-by");
+  app.use(express.json({ limit: "100kb" }));
 
-app.use(cors());
-app.use(express.json({ limit: "1mb" }));
-
-app.use("/api/auth", authRoutes);
-app.use("/api/ingest", ingestionRoutes);
-app.use("/api/data", dataRoutes);
-
-app.get("/", (req, res) => {
-  res.json({
-    success: true,
-    message: "Leafy AI API is running",
+  app.get("/health", (_request, response) => {
+    response.json({
+      success: true,
+      service: "leafy-node-orchestrator",
+      status: "ready",
+    });
   });
-});
 
-module.exports = app;
+  return app;
+}
+
+module.exports = { createApp };
