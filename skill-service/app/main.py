@@ -8,6 +8,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.skills.clients import (
     ClientAlreadyExistsError,
     ClientNotFoundError,
+    ClientDeleteRestrictedError,
+    InvalidConfirmationError,
+    
 )
 
 from app.config import Settings, get_settings
@@ -41,6 +44,10 @@ class SkillRequest(BaseModel):
 
     skill: str = Field(min_length=1, max_length=100)
     role: Literal["user", "admin", "superadmin"] = "user"
+    actor_id: str | None = Field(
+        default=None,
+        pattern=r"^[a-f0-9]{64}$",
+    )
     parameters: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -93,7 +100,7 @@ def get_skills(role: str = "user"):
     try:
         skills = list_available_skills(role)
 
-            
+    
     except PermissionError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -118,6 +125,7 @@ def execute(payload: SkillRequest):
         result = execute_skill(
             skill_name=payload.skill,
             role=payload.role,
+            actor_id=payload.actor_id,
             parameters=payload.parameters,
         )
 
@@ -185,6 +193,24 @@ def execute(payload: SkillRequest):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Klien tidak ditemukan",
         ) from error
+        
+    except ClientDeleteRestrictedError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Klien memiliki riwayat outreach "
+                "dan tidak dapat dihapus"
+            ),
+        ) from error
+
+    except InvalidConfirmationError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Konfirmasi penghapusan tidak valid "
+                "atau sudah kedaluwarsa"
+            ),
+        ) from error
 
     except PermissionError as error:
         raise HTTPException(
@@ -193,10 +219,10 @@ def execute(payload: SkillRequest):
         ) from error
         
     except ClientAlreadyExistsError as error:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Kode klien sudah digunakan",
-            ) from error
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Kode klien sudah digunakan",
+        ) from error
 
     except Exception as error:
         logger.exception("Skill execution failed")

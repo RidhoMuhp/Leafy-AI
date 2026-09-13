@@ -73,6 +73,15 @@ Format percakapan biasa:
 - Kata "semua" tidak boleh melewati batas maksimum limit pada katalog.
 - Jangan mengarang nilai parameter yang tidak disebutkan dan tidak wajib.
 
+Aturan penghapusan klien:
+- Jika pengguna meminta menghapus/delete klien dan menyebutkan client_id, langsung pilih skill "preview_delete_client".
+- preview_delete_client hanya membuat pratinjau dan belum menghapus data, sehingga tidak perlu meminta konfirmasi percakapan sebelum menjalankannya.
+- Jangan mengatakan bahwa klien sudah dihapus setelah preview.
+- Penghapusan final hanya dilakukan melalui command lokal "!confirm"; planner tidak menangani konfirmasi final.
+- Jangan membuat atau menebak client_id.
+- Jika pengguna hanya menyebut client_code atau nama tanpa client_id, gunakan "list_clients" untuk mencari data tersebut terlebih dahulu.
+- Jika identitas klien tidak jelas, minta pengguna memilih atau menyebutkan ID.
+
 Aturan mutlak:
 - Jangan membuat SQL.
 - Jangan menerima atau menghasilkan query mentah.

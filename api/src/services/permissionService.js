@@ -181,6 +181,91 @@ const SKILLS = Object.freeze({
       },
     },
   },
+
+  update_client: {
+    roles: ["admin", "superadmin"],
+    parameters: {
+      database_id: {
+        type: "string",
+        allowed: ["leafy_core"],
+      },
+      client_id: {
+        type: "integer",
+        min: 1,
+      },
+      name: {
+        type: "string",
+        required: false,
+        pattern: /^.{1,150}$/,
+      },
+      business_type: {
+        type: "string",
+        required: false,
+        pattern: /^.{1,100}$/,
+      },
+      phone: {
+        type: "string",
+        required: false,
+        pattern: /^.{1,30}$/,
+      },
+      email: {
+        type: "string",
+        required: false,
+        pattern: /^.{3,255}$/,
+      },
+      city: {
+        type: "string",
+        required: false,
+        pattern: /^.{1,100}$/,
+      },
+      source: {
+        type: "string",
+        required: false,
+        pattern: /^.{1,100}$/,
+      },
+      notes: {
+        type: "string",
+        required: false,
+      },
+    },
+  },
+
+  update_client_status: {
+    roles: ["admin", "superadmin"],
+    parameters: {
+      database_id: {
+        type: "string",
+        allowed: ["leafy_core"],
+      },
+      client_id: {
+        type: "integer",
+        min: 1,
+      },
+      status: {
+        type: "string",
+        allowed: [
+          "prospect",
+          "lead",
+          "contacted",
+          "follow_up",
+        ],
+      },
+    },
+  },
+
+  preview_delete_client: {
+    roles: ["superadmin"],
+    parameters: {
+      database_id: {
+        type: "string",
+        allowed: ["leafy_core"],
+      },
+      client_id: {
+        type: "integer",
+        min: 1,
+      },
+    },
+  },
 });
 
 const FORBIDDEN_KEYS = new Set([

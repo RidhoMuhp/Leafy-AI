@@ -21,6 +21,7 @@ const client = axios.create({
 async function executeSkill({
   skill,
   role,
+  actorId,
   parameters,
 }) {
   if (!env.internalKey) {
@@ -35,6 +36,7 @@ async function executeSkill({
       {
         skill,
         role,
+        actor_id: actorId,
         parameters,
       },
       {
@@ -49,6 +51,26 @@ async function executeSkill({
   } catch (error) {
     const status = error.response?.status;
 
+    if (status === 422) {
+      const validationDetail =
+        error.response?.data?.detail;
+
+      if (Array.isArray(validationDetail)) {
+        console.error(
+          "FastAPI validation summary:",
+          validationDetail.map((item) => ({
+            type: item.type,
+            location: item.loc,
+            message: item.msg,
+          })),
+        );
+      } else {
+        console.error(
+          "FastAPI validation summary:",
+          validationDetail,
+        );
+      }
+    }
     console.error(
       "Skill service request failed:",
       {
@@ -77,6 +99,13 @@ async function executeSkill({
           ? "Klien tersebut tidak ditemukan."
           : "Data yang diminta tidak ditemukan.",
         "RESOURCE_NOT_FOUND",
+      );
+    }
+
+    if (status === 409) {
+      throw new PublicAgentError(
+        "Operasi tidak dapat dilakukan karena data masih memiliki hubungan dengan data lain.",
+        "RESOURCE_CONFLICT",
       );
     }
 

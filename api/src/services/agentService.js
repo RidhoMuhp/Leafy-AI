@@ -15,12 +15,108 @@ const {
   validatePlan,
 } = require("./permissionService");
 
+const {
+  createActorId,
+} = require("./actorService");
+
+
+function formatDeletePreview(result) {
+  const client = result.client;
+
+  return [
+    "*Konfirmasi penghapusan klien*",
+    "",
+    `ID: ${client.id}`,
+    `Kode: ${client.client_code}`,
+    `Nama: ${client.name}`,
+    `Status: ${client.status}`,
+    `Riwayat outreach: ${result.outreach_count}`,
+    "",
+    "*Peringatan:* data akan dihapus permanen.",
+    "",
+    "Untuk mengonfirmasi, kirim:",
+    `!confirm ${result.action_id} ${result.confirmation_token}`,
+    "",
+    "Konfirmasi berlaku selama 10 menit.",
+  ].join("\n");
+}
+
+
+function formatDeleteResult(result) {
+  const client = result.client;
+
+  return [
+    "*Klien berhasil dihapus*",
+    "",
+    `ID: ${client.id}`,
+    `Kode: ${client.client_code}`,
+    `Nama: ${client.name}`,
+  ].join("\n");
+}
+
+
+async function processConfirmationCommand({
+  senderJid,
+  role,
+  actorId,
+  text,
+}) {
+  const confirmationPattern =
+    /^!confirm\s+([0-9a-fA-F-]{36})\s+([A-Za-z0-9_-]{32,200})\s*$/;
+
+  const match = text.trim().match(
+    confirmationPattern,
+  );
+
+  if (!match) {
+    return [
+      "Format konfirmasi tidak valid.",
+      "",
+      "Gunakan:",
+      "!confirm <action_id> <token>",
+    ].join("\n");
+  }
+
+  const [, actionId, confirmationToken] =
+    match;
+
+  const skillResponse = await executeSkill({
+    skill: "confirm_delete_client",
+    role,
+    actorId,
+    parameters: {
+      database_id: "leafy_core",
+      action_id: actionId.toLowerCase(),
+      confirmation_token: confirmationToken,
+    },
+  });
+
+  return formatDeleteResult(
+    skillResponse.result,
+  );
+}
+
 
 async function processMessage({
   senderJid,
   text,
 }) {
   const role = resolveRole(senderJid);
+  const actorId = createActorId(senderJid);
+  const normalizedText = text.trim();
+
+  if (
+    normalizedText
+      .toLowerCase()
+      .startsWith("!confirm")
+  ) {
+    return processConfirmationCommand({
+      senderJid,
+      role,
+      actorId,
+      text: normalizedText,
+    });
+  }
 
   let rawPlan;
 
@@ -52,11 +148,16 @@ async function processMessage({
   try {
     plan = validatePlan(rawPlan, role);
   } catch (error) {
-    console.error("Planner validation failed:", {
-      message: error.message,
-    });
+    console.error(
+      "Planner validation failed:",
+      {
+        message: error.message,
+      },
+    );
 
-    throw new Error("Planner validation failed");
+    throw new Error(
+      "Planner validation failed",
+    );
   }
 
   console.log("Planner result:", {
@@ -72,8 +173,17 @@ async function processMessage({
   const skillResponse = await executeSkill({
     skill: plan.skill,
     role,
+    actorId,
     parameters: plan.parameters,
   });
+
+  if (
+    plan.skill === "preview_delete_client"
+  ) {
+    return formatDeletePreview(
+      skillResponse.result,
+    );
+  }
 
   try {
     return await formatResult({
@@ -91,4 +201,6 @@ async function processMessage({
 }
 
 
-module.exports = { processMessage };
+module.exports = {
+  processMessage,
+};
