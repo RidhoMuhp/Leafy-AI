@@ -5,6 +5,84 @@ const {
 
 const SKILLS = Object.freeze({
 
+  record_outreach: {
+    roles: ["admin", "superadmin"],
+    parameters: {
+      database_id: {
+        type: "string",
+        allowed: ["leafy_core"],
+      },
+      client_id: {
+        type: "integer",
+        min: 1,
+      },
+      channel: {
+        type: "string",
+        allowed: [
+          "whatsapp",
+          "phone",
+          "email",
+          "instagram",
+          "linkedin",
+          "other",
+        ],
+      },
+      direction: {
+        type: "string",
+        required: false,
+        allowed: ["outbound", "inbound"],
+      },
+      message_summary: {
+        type: "string",
+        required: false,
+      },
+      outcome: {
+        type: "string",
+        allowed: [
+          "no_response",
+          "replied",
+          "interested",
+          "follow_up",
+          "converted",
+          "not_interested",
+          "invalid_contact",
+        ],
+      },
+      contacted_at: {
+        type: "string",
+        required: false,
+      },
+      follow_up_at: {
+        type: "string",
+        required: false,
+      },
+    },
+  },
+
+  find_followups: {
+    roles: ["admin", "superadmin"],
+    parameters: {
+      database_id: {
+        type: "string",
+        allowed: ["leafy_core"],
+      },
+      due_date: {
+        type: "string",
+        required: false,
+        pattern: /^\d{4}-\d{2}-\d{2}$/,
+      },
+      city: {
+        type: "string",
+        required: false,
+      },
+      limit: {
+        type: "integer",
+        required: false,
+        min: 1,
+        max: 100,
+      },
+    },
+  },
 
   service_status: {
     roles: ["user", "admin", "superadmin"],
@@ -173,6 +251,9 @@ const SKILLS = Object.freeze({
           "lead",
           "contacted",
           "follow_up",
+          "qualified",
+          "won",
+          "lost",
         ],
       },
       notes: {
@@ -248,6 +329,9 @@ const SKILLS = Object.freeze({
           "lead",
           "contacted",
           "follow_up",
+          "qualified",
+          "won",
+          "lost",
         ],
       },
     },

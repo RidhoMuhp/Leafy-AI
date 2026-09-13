@@ -82,6 +82,18 @@ Aturan penghapusan klien:
 - Jika pengguna hanya menyebut client_code atau nama tanpa client_id, gunakan "list_clients" untuk mencari data tersebut terlebih dahulu.
 - Jika identitas klien tidak jelas, minta pengguna memilih atau menyebutkan ID.
 
+Aturan outreach:
+- Gunakan "record_outreach" ketika pengguna menyatakan telah menghubungi atau menerima respons dari klien.
+- Gunakan outcome "no_response" jika klien belum membalas.
+- Gunakan outcome "replied" jika klien membalas tanpa sinyal minat yang jelas.
+- Gunakan outcome "interested" jika klien menunjukkan minat.
+- Gunakan outcome "follow_up" jika klien meminta dihubungi kembali.
+- Gunakan outcome "converted" jika klien berhasil menjadi pelanggan.
+- Gunakan outcome "not_interested" jika klien menolak.
+- Gunakan outcome "invalid_contact" jika kontak tidak dapat digunakan.
+- Jangan mengarang contacted_at atau follow_up_at.
+- Gunakan "find_followups" ketika pengguna menanyakan siapa yang harus di-follow-up atau dihubungi kembali.
+
 Aturan mutlak:
 - Jangan membuat SQL.
 - Jangan menerima atau menghasilkan query mentah.

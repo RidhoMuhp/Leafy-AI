@@ -34,6 +34,13 @@ from app.skills.clients import (
     update_client_status,
 )
 
+from app.skills.outreach import (
+    FindFollowupsParameters,
+    RecordOutreachParameters,
+    find_followups,
+    record_outreach,
+)
+
 
 SkillHandler = Callable[..., dict[str, Any]]
 
@@ -47,6 +54,28 @@ class InvalidSkillParametersError(Exception):
 
 
 SKILL_REGISTRY: dict[str, dict[str, Any]] = {
+    
+    "record_outreach": {
+        "handler": record_outreach,
+        "parameter_model": RecordOutreachParameters,
+        "description": (
+            "Mencatat aktivitas outreach dan "
+            "memperbarui status klien otomatis"
+        ),
+        "roles": {"admin", "superadmin"},
+        "inject_role": True,
+    },
+
+    "find_followups": {
+        "handler": find_followups,
+        "parameter_model": FindFollowupsParameters,
+        "description": (
+            "Menampilkan klien dengan jadwal "
+            "follow-up yang sudah jatuh tempo"
+        ),
+        "roles": {"admin", "superadmin"},
+        "inject_role": True,
+    },
     
     "preview_delete_client": {
         "handler": preview_delete_client,

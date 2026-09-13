@@ -107,6 +107,9 @@ class CreateClientParameters(ClientDatabaseParameters):
         "lead",
         "contacted",
         "follow_up",
+        "qualified",
+        "won",
+        "lost",
     ] = "prospect"
     notes: str | None = Field(default=None)
 
@@ -222,6 +225,9 @@ class UpdateClientStatusParameters(
         "lead",
         "contacted",
         "follow_up",
+        "qualified",
+        "won",
+        "lost",
     ]
 
 class PreviewDeleteClientParameters(
