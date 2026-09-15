@@ -3,6 +3,11 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
+from app.skills.client_imports import (
+    ConfirmClientImportParameters,
+    confirm_client_import,
+)
+
 from app.skills.database import (
     CountRowsParameters,
     DescribeTableParameters,
@@ -42,6 +47,8 @@ from app.skills.outreach import (
 )
 
 
+
+
 SkillHandler = Callable[..., dict[str, Any]]
 
 
@@ -54,6 +61,17 @@ class InvalidSkillParametersError(Exception):
 
 
 SKILL_REGISTRY: dict[str, dict[str, Any]] = {
+    
+    "confirm_client_import": {
+    "handler": confirm_client_import,
+    "parameter_model": ConfirmClientImportParameters,
+    "description": (
+        "Mengonfirmasi impor klien dari file XLSX atau CSV"
+    ),
+    "roles": {"superadmin"},
+    "inject_role": True,
+    "inject_actor": True,
+},
     
     "record_outreach": {
         "handler": record_outreach,

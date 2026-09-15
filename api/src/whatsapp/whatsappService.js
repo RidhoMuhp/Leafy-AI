@@ -5,6 +5,7 @@ const qrcode = require("qrcode-terminal");
 const {
   Browsers,
   DisconnectReason,
+  downloadMediaMessage,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
   makeWASocket,
@@ -16,13 +17,17 @@ const {
   getSocketIdentity,
 } = require("./jidService");
 
-const { extractText } = require("./messageService");
+const {
+  extractDocumentMetadata,
+  extractText,
+} = require("./messageService");
 const { shouldProcessMessage } = require("./groupPolicy");
 
 const logger = pino({
   level: process.env.WHATSAPP_LOG_LEVEL || "warn",
 });
 
+const MAX_DOCUMENT_SIZE = 5 * 1024 * 1024;
 class WhatsAppService {
   constructor({ authPath, onMessage }) {
     this.authPath = path.resolve(authPath);
@@ -184,7 +189,10 @@ class WhatsAppService {
 
         const text = extractText(message);
 
-        if (!text) {
+        const document =
+          extractDocumentMetadata(message);
+
+        if (!text && !document) {
           continue;
         }
 
@@ -211,6 +219,12 @@ class WhatsAppService {
           message,
           identity,
           text,
+          document,
+          downloadDocument: () =>
+            this.downloadDocument(
+              message,
+              document,
+            ),
           withTyping: (task) =>
             this.withTyping(identity.chatJid, task),
         });
@@ -222,6 +236,68 @@ class WhatsAppService {
       }
     }
   }
+
+  async downloadDocument(
+  message,
+  document,
+) {
+  if (!this.socket) {
+    throw new Error(
+      "WhatsApp belum terhubung",
+    );
+  }
+
+  if (!document) {
+    throw new Error(
+      "Dokumen tidak ditemukan",
+    );
+  }
+
+  if (
+    document.fileLength > MAX_DOCUMENT_SIZE
+  ) {
+    const error = new Error(
+      "Ukuran dokumen melebihi batas 5 MB.",
+    );
+
+    error.name = "PublicDocumentError";
+    error.code = "DOCUMENT_TOO_LARGE";
+    error.isPublic = true;
+
+    throw error;
+  }
+
+  const buffer = await downloadMediaMessage(
+    message,
+    "buffer",
+    {},
+    {
+      logger,
+      reuploadRequest:
+        this.socket.updateMediaMessage,
+    },
+  );
+
+  if (!Buffer.isBuffer(buffer)) {
+    throw new Error(
+      "Hasil unduhan dokumen tidak valid",
+    );
+  }
+
+  if (buffer.length > MAX_DOCUMENT_SIZE) {
+    const error = new Error(
+      "Ukuran dokumen melebihi batas 5 MB.",
+    );
+
+    error.name = "PublicDocumentError";
+    error.code = "DOCUMENT_TOO_LARGE";
+    error.isPublic = true;
+
+    throw error;
+  }
+
+  return buffer;
+}
 
   async sendText(chatJid, text, quotedMessage = null) {
     if (!this.socket) {

@@ -2,7 +2,13 @@ import logging
 import secrets
 from typing import Any, Literal
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import (Depends,
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+    status,)
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, ConfigDict, Field
 from app.skills.clients import (
@@ -29,7 +35,12 @@ from app.database.errors import (
     UnknownDatabaseError,
     UnknownTableError,
 )
-
+from app.skills.client_imports import (
+    ClientImportConfirmationError,
+    InvalidClientImportFileError,
+    MAX_FILE_SIZE,
+    preview_client_import,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -115,11 +126,119 @@ def get_skills(role: str = "user"):
 
 
 @app.post(
+    "/imports/clients/preview",
+    dependencies=[Depends(verify_internal_key)],
+)
+async def preview_clients_import(
+    file: UploadFile = File(...),
+    role: Literal[
+        "user",
+        "admin",
+        "superadmin",
+    ] = Form(...),
+    actor_id: str = Form(...),
+    database_id: str = Form(...),
+):
+    try:
+        if len(actor_id) != 64:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Actor ID tidak valid",
+            )
+
+        file_name = file.filename or ""
+
+        file_content = await file.read(
+            MAX_FILE_SIZE + 1
+        )
+
+        result = preview_client_import(
+            role=role,
+            actor_id=actor_id,
+            database_id=database_id,
+            file_name=file_name,
+            mime_type=(
+                file.content_type
+                or "application/octet-stream"
+            ),
+            file_content=file_content,
+        )
+
+        return {
+            "success": True,
+            "operation": "preview_client_import",
+            "result": result,
+        }
+
+    except InvalidClientImportFileError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        ) from error
+
+    except UnknownDatabaseError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Database tidak terdaftar",
+        ) from error
+
+    except DatabaseAccessDeniedError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Akses database ditolak",
+        ) from error
+
+    except TableAccessDeniedError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Akses tabel ditolak",
+        ) from error
+
+    except DatabaseConfigurationError as error:
+        logger.exception(
+            "Client import database configuration invalid"
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Konfigurasi database tidak tersedia",
+        ) from error
+
+    except DatabaseConnectionError as error:
+        logger.exception(
+            "Client import database connection failed"
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database tidak dapat diakses",
+        ) from error
+
+    except PermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Akses impor klien ditolak",
+        ) from error
+
+    except HTTPException:
+        raise
+
+    except Exception as error:
+        logger.exception("Client import preview failed")
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Preview impor klien gagal",
+        ) from error
+
+    finally:
+        await file.close()
+
+@app.post(
     "/execute",
     response_model=SkillResponse,
     dependencies=[Depends(verify_internal_key)],
 )
-
 def execute(payload: SkillRequest):
     try:
         result = execute_skill(
@@ -134,6 +253,14 @@ def execute(payload: SkillRequest):
             skill=payload.skill,
             result=result,
         )
+    except ClientImportConfirmationError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Konfirmasi impor tidak valid "
+                "atau sudah kedaluwarsa"
+            ),
+        ) from error
         
 
     except UnknownSkillError as error:

@@ -6,6 +6,13 @@ const {
 const {
   processMessage,
 } = require("./services/agentService");
+const {
+  isImportConfirmation,
+  processClientDocument,
+  processImportConfirmation,
+} = require(
+  "./services/clientImportAgentService"
+);
 
 const app = createApp();
 
@@ -27,9 +34,14 @@ async function handleWhatsAppMessage({
   message,
   identity,
   text,
+  document,
+  downloadDocument,
   withTyping,
 }) {
-  if (text.toLowerCase() === "!ping") {
+  if (
+    !document &&
+    text.toLowerCase() === "!ping"
+  ) {
     await socket.sendMessage(
       identity.chatJid,
       {
@@ -45,10 +57,28 @@ async function handleWhatsAppMessage({
 
   await withTyping(async () => {
     try {
-      const response = await processMessage({
-        senderJid: identity.senderJid,
-        text,
-      });
+      let response;
+
+      if (document) {
+        response = await processClientDocument({
+          senderJid: identity.senderJid,
+          document,
+          downloadDocument,
+        });
+      } else if (
+        isImportConfirmation(text)
+      ) {
+        response =
+          await processImportConfirmation({
+            senderJid: identity.senderJid,
+            text,
+          });
+      } else {
+        response = await processMessage({
+          senderJid: identity.senderJid,
+          text,
+        });
+      }
 
       await socket.sendMessage(
         identity.chatJid,
@@ -64,7 +94,9 @@ async function handleWhatsAppMessage({
         "Agent processing failed:",
         {
           name: error.name,
-          code: error.code || "INTERNAL_ERROR",
+          code:
+            error.code ||
+            "INTERNAL_ERROR",
         },
       );
 

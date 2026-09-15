@@ -17,6 +17,14 @@ function unwrapMessage(message) {
       continue;
     }
 
+    if (
+      content?.documentWithCaptionMessage?.message
+    ) {
+      content =
+        content.documentWithCaptionMessage.message;
+      continue;
+    }
+
     break;
   }
 
@@ -34,7 +42,44 @@ function extractText(message) {
     content.documentMessage?.caption ||
     "";
 
-  return typeof text === "string" ? text.trim() : "";
+  return typeof text === "string"
+    ? text.trim()
+    : "";
+}
+
+function extractDocumentMetadata(message) {
+  const content = unwrapMessage(message?.message);
+  const document = content.documentMessage;
+
+  if (!document) {
+    return null;
+  }
+
+  const rawLength =
+    document.fileLength?.toString?.() ||
+    document.fileLength ||
+    "0";
+
+  const fileLength = Number(rawLength);
+
+  return {
+    fileName:
+      typeof document.fileName === "string"
+        ? document.fileName.trim()
+        : "",
+    mimeType:
+      typeof document.mimetype === "string"
+        ? document.mimetype.trim()
+        : "application/octet-stream",
+    fileLength:
+      Number.isFinite(fileLength)
+        ? fileLength
+        : 0,
+    caption:
+      typeof document.caption === "string"
+        ? document.caption.trim()
+        : "",
+  };
 }
 
 function getMentionedJids(message) {
@@ -54,5 +99,6 @@ function getMentionedJids(message) {
 module.exports = {
   unwrapMessage,
   extractText,
+  extractDocumentMetadata,
   getMentionedJids,
 };
