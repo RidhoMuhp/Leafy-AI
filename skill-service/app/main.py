@@ -42,6 +42,14 @@ from app.skills.client_imports import (
     preview_client_import,
 )
 
+from app.skills.finance import (
+    FinanceCategoryNotFoundError,
+    FinanceCategoryTypeMismatchError,
+    FinanceTransactionAlreadyVoidError,
+    FinanceTransactionNotFoundError,
+    FinanceVoidConfirmationError,
+)
+
 logger = logging.getLogger(__name__)
 
 internal_key_header = APIKeyHeader(
@@ -111,7 +119,6 @@ def get_skills(role: str = "user"):
     try:
         skills = list_available_skills(role)
 
-    
     except PermissionError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -123,8 +130,6 @@ def get_skills(role: str = "user"):
         "role": role,
         "skills": skills,
     }
-
-
 @app.post(
     "/imports/clients/preview",
     dependencies=[Depends(verify_internal_key)],
@@ -338,13 +343,54 @@ def execute(payload: SkillRequest):
                 "atau sudah kedaluwarsa"
             ),
         ) from error
+        
+    except FinanceCategoryNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Kategori keuangan tidak ditemukan",
+        ) from error
+
+    except FinanceCategoryTypeMismatchError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "Kategori tidak sesuai dengan "
+                "jenis transaksi"
+            ),
+        ) from error
+    except FinanceTransactionNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Transaksi keuangan tidak ditemukan",
+        ) from error
+
+    except FinanceTransactionAlreadyVoidError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Transaksi keuangan sudah dibatalkan",
+        ) from error
+
+    except FinanceVoidConfirmationError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Konfirmasi pembatalan transaksi tidak valid "
+                "atau sudah kedaluwarsa"
+            ),
+        ) from error
 
     except PermissionError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Akses skill ditolak",
         ) from error
-        
+
+    except PermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Akses skill ditolak",
+        ) from error
+            
     except ClientAlreadyExistsError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

@@ -5,6 +5,37 @@ const {
 
 const SKILLS = Object.freeze({
 
+  get_finance_transaction: {
+    roles: ["admin", "superadmin"],
+    parameters: {
+      database_id: {
+        type: "string",
+        allowed: ["leafy_core"],
+      },
+      transaction_id: {
+        type: "integer",
+        min: 1,
+      },
+    },
+  },
+
+  preview_void_finance_transaction: {
+    roles: ["superadmin"],
+    parameters: {
+      database_id: {
+        type: "string",
+        allowed: ["leafy_core"],
+      },
+      transaction_id: {
+        type: "integer",
+        min: 1,
+      },
+      reason: {
+        type: "string",
+      },
+    },
+  },
+
   record_outreach: {
     roles: ["admin", "superadmin"],
     parameters: {
@@ -350,6 +381,191 @@ const SKILLS = Object.freeze({
       },
     },
   },
+
+  list_finance_categories: {
+    roles: ["admin", "superadmin"],
+    parameters: {
+      database_id: {
+        type: "string",
+        allowed: ["leafy_core"],
+      },
+      transaction_type: {
+        type: "string",
+        required: false,
+        allowed: ["income", "expense"],
+      },
+    },
+  },
+
+  record_income: {
+    roles: ["admin", "superadmin"],
+    parameters: {
+      database_id: {
+        type: "string",
+        allowed: ["leafy_core"],
+      },
+      category_code: {
+        type: "string",
+        pattern: /^[a-z][a-z0-9_]{0,49}$/,
+      },
+      amount: {
+        type: "number",
+        min: 0.01,
+        max: 9999999999999.99,
+      },
+      description: {
+        type: "string",
+      },
+      transaction_date: {
+        type: "string",
+        required: false,
+        pattern: /^\d{4}-\d{2}-\d{2}$/,
+      },
+      client_id: {
+        type: "integer",
+        required: false,
+        min: 1,
+      },
+      counterparty: {
+        type: "string",
+        required: false,
+      },
+      payment_method: {
+        type: "string",
+        required: false,
+        pattern: /^[a-z][a-z0-9_-]{0,29}$/,
+      },
+      reference_number: {
+        type: "string",
+        required: false,
+      },
+      notes: {
+        type: "string",
+        required: false,
+      },
+    },
+  },
+
+  record_expense: {
+    roles: ["admin", "superadmin"],
+    parameters: {
+      database_id: {
+        type: "string",
+        allowed: ["leafy_core"],
+      },
+      category_code: {
+        type: "string",
+        pattern: /^[a-z][a-z0-9_]{0,49}$/,
+      },
+      amount: {
+        type: "number",
+        min: 0.01,
+        max: 9999999999999.99,
+      },
+      description: {
+        type: "string",
+      },
+      transaction_date: {
+        type: "string",
+        required: false,
+        pattern: /^\d{4}-\d{2}-\d{2}$/,
+      },
+      client_id: {
+        type: "integer",
+        required: false,
+        min: 1,
+      },
+      counterparty: {
+        type: "string",
+        required: false,
+      },
+      payment_method: {
+        type: "string",
+        required: false,
+        pattern: /^[a-z][a-z0-9_-]{0,29}$/,
+      },
+      reference_number: {
+        type: "string",
+        required: false,
+      },
+      notes: {
+        type: "string",
+        required: false,
+      },
+    },
+  },
+
+  list_finance_transactions: {
+    roles: ["admin", "superadmin"],
+    parameters: {
+      database_id: {
+        type: "string",
+        allowed: ["leafy_core"],
+      },
+      transaction_type: {
+        type: "string",
+        required: false,
+        allowed: ["income", "expense"],
+      },
+      category_code: {
+        type: "string",
+        required: false,
+        pattern: /^[a-z][a-z0-9_]{0,49}$/,
+      },
+      client_id: {
+        type: "integer",
+        required: false,
+        min: 1,
+      },
+      status: {
+        type: "string",
+        required: false,
+        allowed: ["posted", "void"],
+      },
+      start_date: {
+        type: "string",
+        required: false,
+        pattern: /^\d{4}-\d{2}-\d{2}$/,
+      },
+      end_date: {
+        type: "string",
+        required: false,
+        pattern: /^\d{4}-\d{2}-\d{2}$/,
+      },
+      limit: {
+        type: "integer",
+        required: false,
+        min: 1,
+        max: 100,
+      },
+      offset: {
+        type: "integer",
+        required: false,
+        min: 0,
+        max: 100000,
+      },
+    },
+  },
+
+  get_finance_summary: {
+    roles: ["admin", "superadmin"],
+    parameters: {
+      database_id: {
+        type: "string",
+        allowed: ["leafy_core"],
+      },
+      start_date: {
+        type: "string",
+        required: false,
+        pattern: /^\d{4}-\d{2}-\d{2}$/,
+      },
+      end_date: {
+        type: "string",
+        required: false,
+        pattern: /^\d{4}-\d{2}-\d{2}$/,
+      },
+    },
+  },
 });
 
 const FORBIDDEN_KEYS = new Set([
@@ -433,6 +649,18 @@ function validateField(name, value, definition) {
       `Parameter '${name}' harus berupa bilangan bulat`,
     );
   }
+
+  if (
+  definition.type === "number" &&
+  (
+    typeof value !== "number" ||
+    !Number.isFinite(value)
+  )
+) {
+  throw new Error(
+    `Parameter '${name}' harus berupa angka`,
+  );
+}
 
   if (
     definition.allowed &&

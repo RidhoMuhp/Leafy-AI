@@ -14,6 +14,11 @@ const {
   "./services/clientImportAgentService"
 );
 
+const {
+  isFinanceVoidConfirmation,
+  processFinanceVoidConfirmation,
+} = require("./services/financeVoidService");
+
 const app = createApp();
 
 const httpServer = app.listen(
@@ -73,6 +78,15 @@ async function handleWhatsAppMessage({
             senderJid: identity.senderJid,
             text,
           });
+      } else if (
+        isFinanceVoidConfirmation(text)
+      ) {
+        response =
+          await processFinanceVoidConfirmation({
+            senderJid: identity.senderJid,
+            text,
+          });
+
       } else {
         response = await processMessage({
           senderJid: identity.senderJid,

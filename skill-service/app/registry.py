@@ -8,6 +8,24 @@ from app.skills.client_imports import (
     confirm_client_import,
 )
 
+from app.skills.finance import (
+    ConfirmVoidFinanceTransactionParameters,
+    GetFinanceSummaryParameters,
+    GetFinanceTransactionParameters,
+    ListFinanceCategoriesParameters,
+    ListFinanceTransactionsParameters,
+    PreviewVoidFinanceTransactionParameters,
+    RecordFinanceTransactionParameters,
+    confirm_void_finance_transaction,
+    get_finance_summary,
+    get_finance_transaction,
+    list_finance_categories,
+    list_finance_transactions,
+    preview_void_finance_transaction,
+    record_expense,
+    record_income,
+)
+
 from app.skills.database import (
     CountRowsParameters,
     DescribeTableParameters,
@@ -61,6 +79,101 @@ class InvalidSkillParametersError(Exception):
 
 
 SKILL_REGISTRY: dict[str, dict[str, Any]] = {
+    
+    "get_finance_transaction": {
+        "handler": get_finance_transaction,
+        "parameter_model":
+            GetFinanceTransactionParameters,
+        "description": (
+            "Menampilkan detail satu transaksi keuangan"
+        ),
+        "roles": {"admin", "superadmin"},
+        "inject_role": True,
+    },
+
+    "preview_void_finance_transaction": {
+        "handler": preview_void_finance_transaction,
+        "parameter_model":
+            PreviewVoidFinanceTransactionParameters,
+        "description": (
+            "Membuat preview pembatalan transaksi keuangan"
+        ),
+        "roles": {"superadmin"},
+        "inject_role": True,
+        "inject_actor": True,
+    },
+
+    "confirm_void_finance_transaction": {
+        "handler": confirm_void_finance_transaction,
+        "parameter_model":
+            ConfirmVoidFinanceTransactionParameters,
+        "description": (
+            "Mengonfirmasi pembatalan transaksi keuangan"
+        ),
+        "roles": {"superadmin"},
+        "inject_role": True,
+        "inject_actor": True,
+    },
+    
+    "list_finance_categories": {
+        "handler": list_finance_categories,
+        "parameter_model":
+            ListFinanceCategoriesParameters,
+        "description": (
+            "Menampilkan kategori pemasukan "
+            "dan pengeluaran yang tersedia"
+        ),
+        "roles": {"admin", "superadmin"},
+        "inject_role": True,
+    },
+
+    "record_income": {
+        "handler": record_income,
+        "parameter_model":
+            RecordFinanceTransactionParameters,
+        "description": (
+            "Mencatat transaksi pemasukan bisnis"
+        ),
+        "roles": {"admin", "superadmin"},
+        "inject_role": True,
+        "inject_actor": True,
+    },
+
+    "record_expense": {
+        "handler": record_expense,
+        "parameter_model":
+            RecordFinanceTransactionParameters,
+        "description": (
+            "Mencatat transaksi pengeluaran bisnis"
+        ),
+        "roles": {"admin", "superadmin"},
+        "inject_role": True,
+        "inject_actor": True,
+    },
+
+    "list_finance_transactions": {
+        "handler": list_finance_transactions,
+        "parameter_model":
+            ListFinanceTransactionsParameters,
+        "description": (
+            "Menampilkan transaksi keuangan "
+            "berdasarkan filter"
+        ),
+        "roles": {"admin", "superadmin"},
+        "inject_role": True,
+    },
+
+    "get_finance_summary": {
+        "handler": get_finance_summary,
+        "parameter_model":
+            GetFinanceSummaryParameters,
+        "description": (
+            "Menghitung pemasukan, pengeluaran, "
+            "dan arus kas bersih"
+        ),
+        "roles": {"admin", "superadmin"},
+        "inject_role": True,
+    },
     
     "confirm_client_import": {
     "handler": confirm_client_import,

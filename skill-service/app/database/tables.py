@@ -16,6 +16,51 @@ class TableDefinition:
 
 TABLE_REGISTRY: dict[str, dict[str, TableDefinition]] = {
     "leafy_core": {
+        "finance_categories": TableDefinition(
+            physical_name="finance_categories",
+            readable_columns=(
+                "id",
+                "category_code",
+                "name",
+                "transaction_type",
+                "is_active",
+                "created_at",
+                "updated_at",
+            ),
+            allowed_roles=frozenset(
+                {"admin", "superadmin"}
+            ),
+            default_order_column="id",
+        ),
+
+        "finance_transactions": TableDefinition(
+            physical_name="finance_transactions",
+            readable_columns=(
+                "id",
+                "transaction_code",
+                "transaction_type",
+                "category_id",
+                "client_id",
+                "counterparty",
+                "description",
+                "amount",
+                "currency",
+                "transaction_date",
+                "payment_method",
+                "reference_number",
+                "status",
+                "notes",
+                "created_at",
+                "updated_at",
+                "void_reason",
+                "voided_at",
+            ),
+            allowed_roles=frozenset(
+                {"admin", "superadmin"}
+            ),
+            default_order_column="id",
+        ),
+                
         "clients": TableDefinition(
             physical_name="clients",
             readable_columns=(
@@ -134,3 +179,4 @@ def get_table_definition(
         raise TableAccessDeniedError
 
     return table
+

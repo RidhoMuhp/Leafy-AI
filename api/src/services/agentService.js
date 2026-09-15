@@ -19,6 +19,10 @@ const {
   createActorId,
 } = require("./actorService");
 
+const {
+  formatFinanceVoidPreview,
+} = require("./financeVoidService");
+
 
 function formatDeletePreview(result) {
   const client = result.client;
@@ -177,10 +181,21 @@ async function processMessage({
     parameters: plan.parameters,
   });
 
+  
+
   if (
     plan.skill === "preview_delete_client"
   ) {
     return formatDeletePreview(
+      skillResponse.result,
+    );
+  }
+
+  if (
+    plan.skill ===
+    "preview_void_finance_transaction"
+  ) {
+    return formatFinanceVoidPreview(
       skillResponse.result,
     );
   }

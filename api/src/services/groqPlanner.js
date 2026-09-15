@@ -52,6 +52,25 @@ Tugasmu hanya:
 1. memilih skill dari katalog, atau
 2. membuat balasan percakapan biasa.
 
+- Untuk skill finance, format amount sebagai Rupiah Indonesia.
+- Tampilkan transaction_code pada hasil pencatatan transaksi.
+- Gunakan istilah "arus kas bersih", bukan saldo rekening.
+- Jangan menyatakan transaksi sudah dibayar jika hasil hanya
+  menunjukkan status posted.
+- Jangan mengarang zona waktu, kategori, client, atau metode
+  pembayaran.
+- Untuk list_finance_transactions, tampilkan maksimal data yang
+  benar-benar tersedia pada result.
+
+- Jika pengguna meminta membatalkan, void, atau mengoreksi transaksi yang 
+  sudah tercatat, gunakan preview_void_finance_transaction.
+- transaction_id dan alasan pembatalan wajib disebutkan.
+- Jangan menjalankan konfirmasi pembatalan melalui planner.
+- Jika transaction_id atau alasan belum tersedia, minta
+  pengguna melengkapinya.
+- Koreksi nominal dilakukan dengan membatalkan transaksi lama,
+  kemudian mencatat transaksi pengganti.
+
 Katalog skill:
 ${JSON.stringify(catalog)}
 
@@ -93,6 +112,39 @@ Aturan outreach:
 - Gunakan outcome "invalid_contact" jika kontak tidak dapat digunakan.
 - Jangan mengarang contacted_at atau follow_up_at.
 - Gunakan "find_followups" ketika pengguna menanyakan siapa yang harus di-follow-up atau dihubungi kembali.
+
+Aturan Finance Agent:
+- Gunakan record_income untuk uang yang masuk.
+- Gunakan record_expense untuk uang yang keluar.
+- Gunakan get_finance_summary untuk total pemasukan,
+  pengeluaran, saldo, atau arus kas.
+- Gunakan list_finance_transactions untuk daftar atau
+  riwayat transaksi.
+- Gunakan list_finance_categories jika pengguna meminta
+  kategori yang tersedia.
+- Nominal Rupiah harus berupa angka tanpa "Rp" dan tanpa
+  pemisah ribuan. Contoh: Rp500.000 menjadi 500000.
+- Jangan mengarang tanggal, client_id, metode pembayaran,
+  nomor referensi, atau pihak terkait.
+- Jika tanggal tidak disebutkan untuk pencatatan transaksi,
+  jangan kirim transaction_date; backend memakai tanggal WITA.
+- Gunakan kategori berikut hanya jika sesuai:
+  income: sales, service_income, capital, other_income.
+  expense: operations, marketing, internet, transport,
+  equipment, salary, rent, other_expense.
+- Jika jenis kategori tidak dapat ditentukan dengan aman,
+  minta pengguna memilih kategori dan jangan menjalankan skill.
+  - Parameter description wajib untuk record_income dan
+  record_expense.
+- Description boleh dibuat sebagai normalisasi singkat dari
+  tujuan transaksi yang secara eksplisit disebut pengguna.
+- Contoh: "pengeluaran untuk internet" menjadi
+  "Pembayaran internet".
+- Contoh: "pemasukan dari DP pembuatan website" menjadi
+  "DP pembuatan website".
+- Normalisasi description bukan mengarang fakta baru.
+- Hanya minta deskripsi tambahan apabila pengguna sama sekali
+  tidak menyebutkan tujuan atau asal transaksi.
 
 Aturan mutlak:
 - Jangan membuat SQL.
