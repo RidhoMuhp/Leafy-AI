@@ -18,6 +18,108 @@ const client = axios.create({
   },
 });
 
+const uploadClient = axios.create({
+  baseURL: env.skillServiceUrl,
+  timeout: 120000,
+});
+
+async function ingestDocument({
+  role,
+  databaseId,
+  fileName,
+  mimeType,
+  buffer,
+}) {
+  if (!env.internalKey) {
+    throw new Error(
+      "Internal key belum dikonfigurasi",
+    );
+  }
+
+  if (!Buffer.isBuffer(buffer)) {
+    throw new Error(
+      "Buffer dokumen tidak valid",
+    );
+  }
+
+  const form = new FormData();
+
+  form.append("role", role);
+  form.append("database_id", databaseId);
+
+  form.append(
+    "file",
+    new Blob(
+      [buffer],
+      {
+        type:
+          mimeType ||
+          "application/octet-stream",
+      },
+    ),
+    fileName || "document.bin",
+  );
+
+  try {
+    const response = await uploadClient.post(
+      "/documents/ingest",
+      form,
+      {
+        headers: {
+          "x-leafy-internal-key":
+            env.internalKey,
+        },
+      },
+    );
+
+    return response.data;
+  } catch (error) {
+    const status = error.response?.status;
+
+    console.error(
+      "Document ingestion request failed:",
+      {
+        status: status || "unavailable",
+      },
+    );
+
+    if (status === 422) {
+      throw new PublicAgentError(
+        "File tidak valid, tidak didukung, "
+        + "atau tidak memiliki teks yang dapat dibaca.",
+        "INVALID_DOCUMENT",
+      );
+    }
+
+    if (status === 403) {
+      throw new PublicAgentError(
+        "Anda tidak memiliki izin "
+        + "untuk menyimpan dokumen.",
+        "DOCUMENT_ACCESS_DENIED",
+      );
+    }
+
+    if (status === 409) {
+      throw new PublicAgentError(
+        "Dokumen yang sama sudah tersedia.",
+        "DUPLICATE_DOCUMENT",
+      );
+    }
+
+    if (status === 503) {
+      throw new PublicAgentError(
+        "Database sedang tidak dapat diakses.",
+        "DATABASE_UNAVAILABLE",
+      );
+    }
+
+    throw new Error(
+      "Document ingestion service "
+      + "tidak dapat diakses",
+    );
+  }
+}
+
 async function executeSkill({
   skill,
   role,
@@ -124,5 +226,6 @@ async function executeSkill({
 
 module.exports = {
   executeSkill,
+  ingestDocument,
   PublicAgentError,
 };

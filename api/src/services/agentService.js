@@ -166,6 +166,7 @@ async function processMessage({
 
   console.log("Planner result:", {
     action: plan.action,
+    agent: plan.agent,
     skill: plan.skill || null,
     role,
   });

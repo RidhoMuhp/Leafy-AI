@@ -50,6 +50,16 @@ from app.skills.finance import (
     FinanceVoidConfirmationError,
 )
 
+from app.skills.document_ingestion import (
+    DocumentExtractionError,
+    DuplicateDocumentError,
+    InvalidDocumentFileError,
+    MAX_DOCUMENT_FILE_SIZE,
+    ingest_document,
+)
+
+from app.skills.documents import DocumentNotFoundError
+
 logger = logging.getLogger(__name__)
 
 internal_key_header = APIKeyHeader(
@@ -240,6 +250,127 @@ async def preview_clients_import(
         await file.close()
 
 @app.post(
+    "/documents/ingest",
+    dependencies=[Depends(verify_internal_key)],
+)
+async def ingest_knowledge_document(
+    file: UploadFile = File(...),
+    role: Literal[
+        "user",
+        "admin",
+        "superadmin",
+    ] = Form(...),
+    database_id: str = Form(...),
+):
+    try:
+        file_name = file.filename or ""
+
+        file_content = await file.read(
+            MAX_DOCUMENT_FILE_SIZE + 1
+        )
+
+        result = ingest_document(
+            role=role,
+            database_id=database_id,
+            file_name=file_name,
+            supplied_mime_type=(
+                file.content_type
+                or "application/octet-stream"
+            ),
+            file_content=file_content,
+        )
+
+        return {
+            "success": True,
+            "operation": "ingest_document",
+            "result": result,
+        }
+
+    except InvalidDocumentFileError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        ) from error
+
+    except DocumentExtractionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        ) from error
+
+    except DuplicateDocumentError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Dokumen yang sama sudah tersedia",
+        ) from error
+
+    except UnknownDatabaseError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Database tidak terdaftar",
+        ) from error
+
+    except UnknownTableError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tabel dokumen tidak terdaftar",
+        ) from error
+
+    except DatabaseAccessDeniedError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Akses database ditolak",
+        ) from error
+
+    except TableAccessDeniedError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Akses tabel dokumen ditolak",
+        ) from error
+
+    except DatabaseConfigurationError as error:
+        logger.exception(
+            "Document database configuration invalid"
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Konfigurasi database tidak tersedia",
+        ) from error
+
+    except DatabaseConnectionError as error:
+        logger.exception(
+            "Document database connection failed"
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database tidak dapat diakses",
+        ) from error
+
+    except PermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Akses ingestion dokumen ditolak",
+        ) from error
+
+    except HTTPException:
+        raise
+
+    except Exception as error:
+        logger.exception(
+            "Document ingestion failed"
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Dokumen gagal diproses",
+        ) from error
+
+    finally:
+        await file.close()
+
+@app.post(
     "/execute",
     response_model=SkillResponse,
     dependencies=[Depends(verify_internal_key)],
@@ -326,6 +457,12 @@ def execute(payload: SkillRequest):
             detail="Klien tidak ditemukan",
         ) from error
         
+    except DocumentNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Dokumen tidak ditemukan",
+        ) from error   
+        
     except ClientDeleteRestrictedError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -377,12 +514,6 @@ def execute(payload: SkillRequest):
                 "Konfirmasi pembatalan transaksi tidak valid "
                 "atau sudah kedaluwarsa"
             ),
-        ) from error
-
-    except PermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Akses skill ditolak",
         ) from error
 
     except PermissionError as error:

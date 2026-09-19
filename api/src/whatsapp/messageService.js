@@ -47,39 +47,87 @@ function extractText(message) {
     : "";
 }
 
-function extractDocumentMetadata(message) {
-  const content = unwrapMessage(message?.message);
-  const document = content.documentMessage;
-
-  if (!document) {
-    return null;
-  }
-
-  const rawLength =
-    document.fileLength?.toString?.() ||
-    document.fileLength ||
+function normalizeFileLength(value) {
+  const rawValue =
+    value?.toString?.() ||
+    value ||
     "0";
 
-  const fileLength = Number(rawLength);
+  const fileLength = Number(rawValue);
 
-  return {
-    fileName:
-      typeof document.fileName === "string"
-        ? document.fileName.trim()
-        : "",
-    mimeType:
-      typeof document.mimetype === "string"
-        ? document.mimetype.trim()
-        : "application/octet-stream",
-    fileLength:
-      Number.isFinite(fileLength)
-        ? fileLength
-        : 0,
-    caption:
-      typeof document.caption === "string"
-        ? document.caption.trim()
-        : "",
-  };
+  return Number.isFinite(fileLength)
+    ? fileLength
+    : 0;
+}
+
+
+function getImageExtension(mimeType) {
+  if (mimeType === "image/png") {
+    return ".png";
+  }
+
+  return ".jpg";
+}
+
+
+function extractAttachmentMetadata(message) {
+  const content = unwrapMessage(
+    message?.message,
+  );
+
+  const document = content.documentMessage;
+
+  if (document) {
+    return {
+      sourceType: "document",
+      fileName:
+        typeof document.fileName === "string"
+          ? document.fileName.trim()
+          : "",
+      mimeType:
+        typeof document.mimetype === "string"
+          ? document.mimetype.trim()
+          : "application/octet-stream",
+      fileLength: normalizeFileLength(
+        document.fileLength,
+      ),
+      caption:
+        typeof document.caption === "string"
+          ? document.caption.trim()
+          : "",
+    };
+  }
+
+  const image = content.imageMessage;
+
+  if (image) {
+    const mimeType =
+      typeof image.mimetype === "string"
+        ? image.mimetype.trim()
+        : "image/jpeg";
+
+    const messageId =
+      typeof message?.key?.id === "string"
+        ? message.key.id
+        : Date.now().toString();
+
+    return {
+      sourceType: "image",
+      fileName:
+        `whatsapp-image-${messageId}`
+        + getImageExtension(mimeType),
+      mimeType,
+      fileLength: normalizeFileLength(
+        image.fileLength,
+      ),
+      caption:
+        typeof image.caption === "string"
+          ? image.caption.trim()
+          : "",
+    };
+  }
+
+  return null;
 }
 
 function getMentionedJids(message) {
@@ -99,6 +147,6 @@ function getMentionedJids(message) {
 module.exports = {
   unwrapMessage,
   extractText,
-  extractDocumentMetadata,
+  extractAttachmentMetadata,
   getMentionedJids,
 };

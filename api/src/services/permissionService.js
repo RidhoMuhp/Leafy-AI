@@ -5,6 +5,23 @@ const {
 
 const SKILLS = Object.freeze({
 
+  
+
+  get_daily_business_summary: {
+    roles: ["admin", "superadmin"],
+    parameters: {
+      database_id: {
+        type: "string",
+        allowed: ["leafy_core"],
+      },
+      summary_date: {
+        type: "string",
+        required: false,
+        pattern: /^\d{4}-\d{2}-\d{2}$/,
+      },
+    },
+  },
+
   get_finance_transaction: {
     roles: ["admin", "superadmin"],
     parameters: {
@@ -566,7 +583,176 @@ const SKILLS = Object.freeze({
       },
     },
   },
+
+    list_documents: {
+    roles: ["admin", "superadmin"],
+    parameters: {
+      database_id: {
+        type: "string",
+        allowed: ["leafy_core"],
+      },
+      search: {
+        type: "string",
+        required: false,
+        pattern: /^[\s\S]{1,200}$/,
+      },
+      status: {
+        type: "string",
+        required: false,
+        allowed: ["processed"],
+      },
+      limit: {
+        type: "integer",
+        required: false,
+        min: 1,
+        max: 100,
+      },
+      offset: {
+        type: "integer",
+        required: false,
+        min: 0,
+        max: 100000,
+      },
+    },
+  },
+
+  get_document: {
+    roles: ["admin", "superadmin"],
+    parameters: {
+      database_id: {
+        type: "string",
+        allowed: ["leafy_core"],
+      },
+      document_code: {
+        type: "string",
+        pattern: /^DOC-[A-Z0-9]{20}$/,
+      },
+    },
+  },
+
+  search_knowledge: {
+    roles: ["admin", "superadmin"],
+    parameters: {
+      database_id: {
+        type: "string",
+        allowed: ["leafy_core"],
+      },
+      search_text: {
+        type: "string",
+        pattern: /^[\s\S]{2,200}$/,
+      },
+      document_code: {
+        type: "string",
+        required: false,
+        pattern: /^DOC-[A-Z0-9]{20}$/,
+      },
+      limit: {
+        type: "integer",
+        required: false,
+        min: 1,
+        max: 20,
+      },
+      offset: {
+        type: "integer",
+        required: false,
+        min: 0,
+        max: 10000,
+      },
+    },
+  },
 });
+
+const AGENT_SKILLS = Object.freeze({
+  system: Object.freeze([
+    "service_status",
+    "list_tables",
+    "describe_table",
+    "read_table",
+    "count_rows",
+  ]),
+
+  management: Object.freeze([
+    "list_clients",
+    "get_client",
+    "create_client",
+    "update_client",
+    "update_client_status",
+    "record_outreach",
+    "find_followups",
+    "preview_delete_client",
+    "get_daily_business_summary",
+  ]),
+
+  finance: Object.freeze([
+    "list_finance_categories",
+    "record_income",
+    "record_expense",
+    "list_finance_transactions",
+    "get_finance_transaction",
+    "get_finance_summary",
+    "preview_void_finance_transaction",
+  ]),
+
+    document: Object.freeze([
+    "list_documents",
+    "get_document",
+    "search_knowledge",
+  ]),
+});
+
+
+function buildSkillAgentLookup() {
+  const lookup = {};
+
+  for (const [
+    agent,
+    skillNames,
+  ] of Object.entries(AGENT_SKILLS)) {
+    for (const skillName of skillNames) {
+      if (!SKILLS[skillName]) {
+        throw new Error(
+          `Skill '${skillName}' pada agent '${agent}' tidak terdaftar`,
+        );
+      }
+
+      if (lookup[skillName]) {
+        throw new Error(
+          `Skill '${skillName}' memiliki lebih dari satu agent`,
+        );
+      }
+
+      lookup[skillName] = agent;
+    }
+  }
+
+  for (const skillName of Object.keys(SKILLS)) {
+    if (!lookup[skillName]) {
+      throw new Error(
+        `Skill '${skillName}' belum memiliki agent`,
+      );
+    }
+  }
+
+  return Object.freeze(lookup);
+}
+
+
+const SKILL_AGENT_LOOKUP =
+  buildSkillAgentLookup();
+
+
+function getSkillAgent(skillName) {
+  const agent =
+    SKILL_AGENT_LOOKUP[skillName];
+
+  if (!agent) {
+    throw new Error(
+      "Agent skill tidak ditemukan",
+    );
+  }
+
+  return agent;
+}
 
 const FORBIDDEN_KEYS = new Set([
   "query",
@@ -651,16 +837,16 @@ function validateField(name, value, definition) {
   }
 
   if (
-  definition.type === "number" &&
-  (
-    typeof value !== "number" ||
-    !Number.isFinite(value)
-  )
-) {
-  throw new Error(
-    `Parameter '${name}' harus berupa angka`,
-  );
-}
+    definition.type === "number" &&
+    (
+      typeof value !== "number" ||
+      !Number.isFinite(value)
+    )
+  ) {
+    throw new Error(
+      `Parameter '${name}' harus berupa angka`,
+    );
+  }
 
   if (
     definition.allowed &&
@@ -718,6 +904,7 @@ function validatePlan(plan, role) {
 
     return {
       action: "reply",
+      agent: "conversation",
       reply: plan.reply.trim(),
     };
   }
@@ -806,6 +993,7 @@ function validatePlan(plan, role) {
 
   return {
     action: "skill",
+    agent: getSkillAgent(plan.skill),
     skill: plan.skill,
     parameters,
   };
@@ -818,6 +1006,7 @@ function getPlannerCatalog(role) {
     )
     .map(([name, definition]) => ({
       name,
+      agent: getSkillAgent(name),
       parameters: Object.fromEntries(
         Object.entries(
           definition.parameters,
@@ -841,8 +1030,26 @@ function getPlannerCatalog(role) {
     }));
 }
 
+function getAgentCatalog(role) {
+  return Object.entries(AGENT_SKILLS)
+    .map(([agent, skillNames]) => ({
+      agent,
+      skills: skillNames.filter(
+        (skillName) =>
+          SKILLS[
+            skillName
+          ].roles.includes(role),
+      ),
+    }))
+    .filter(
+      (item) => item.skills.length > 0,
+    );
+}
+
 module.exports = {
   resolveRole,
   validatePlan,
   getPlannerCatalog,
+  getAgentCatalog,
+  getSkillAgent,
 };

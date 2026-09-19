@@ -2,7 +2,6 @@ import os
 import re
 from dataclasses import dataclass
 
-
 from app.database.errors import (
     DatabaseAccessDeniedError,
     DatabaseConfigurationError,

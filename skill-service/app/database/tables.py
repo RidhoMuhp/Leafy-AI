@@ -122,7 +122,7 @@ TABLE_REGISTRY: dict[str, dict[str, TableDefinition]] = {
                 "token_count",
                 "created_at",
             ),
-            allowed_roles=frozenset({"superadmin"}),
+            allowed_roles=frozenset({"admin", "superadmin"}),
             default_order_column="id",
         ),
         "pending_actions": TableDefinition(

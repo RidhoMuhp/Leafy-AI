@@ -6,12 +6,18 @@ const {
 const {
   processMessage,
 } = require("./services/agentService");
+
 const {
   isImportConfirmation,
-  processClientDocument,
   processImportConfirmation,
 } = require(
   "./services/clientImportAgentService"
+);
+
+const {
+  processKnowledgeAttachment,
+} = require(
+  "./services/knowledgeDocumentAgentService"
 );
 
 const {
@@ -39,12 +45,12 @@ async function handleWhatsAppMessage({
   message,
   identity,
   text,
-  document,
-  downloadDocument,
+  attachment,
+  downloadAttachment,
   withTyping,
 }) {
   if (
-    !document &&
+    !attachment &&
     text.toLowerCase() === "!ping"
   ) {
     await socket.sendMessage(
@@ -64,11 +70,11 @@ async function handleWhatsAppMessage({
     try {
       let response;
 
-      if (document) {
-        response = await processClientDocument({
+      if (attachment) {
+        response = await processKnowledgeAttachment({
           senderJid: identity.senderJid,
-          document,
-          downloadDocument,
+          attachment,
+          downloadAttachment,
         });
       } else if (
         isImportConfirmation(text)

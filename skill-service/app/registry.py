@@ -64,7 +64,19 @@ from app.skills.outreach import (
     record_outreach,
 )
 
+from app.skills.business_summary import (
+    DailyBusinessSummaryParameters,
+    get_daily_business_summary,
+)
 
+from app.skills.documents import (
+    GetDocumentParameters,
+    ListDocumentsParameters,
+    SearchKnowledgeParameters,
+    get_document,
+    list_documents,
+    search_knowledge,
+)
 
 
 SkillHandler = Callable[..., dict[str, Any]]
@@ -79,6 +91,51 @@ class InvalidSkillParametersError(Exception):
 
 
 SKILL_REGISTRY: dict[str, dict[str, Any]] = {
+    
+        "list_documents": {
+        "handler": list_documents,
+        "parameter_model": ListDocumentsParameters,
+        "description": (
+            "Menampilkan daftar dokumen perusahaan "
+            "yang telah diproses"
+        ),
+        "roles": {"admin", "superadmin"},
+        "inject_role": True,
+    },
+
+    "get_document": {
+        "handler": get_document,
+        "parameter_model": GetDocumentParameters,
+        "description": (
+            "Menampilkan detail dokumen berdasarkan "
+            "document_code"
+        ),
+        "roles": {"admin", "superadmin"},
+        "inject_role": True,
+    },
+
+    "search_knowledge": {
+        "handler": search_knowledge,
+        "parameter_model": SearchKnowledgeParameters,
+        "description": (
+            "Mencari informasi relevan dalam dokumen "
+            "perusahaan yang telah diproses"
+        ),
+        "roles": {"admin", "superadmin"},
+        "inject_role": True,
+    },
+    
+    "get_daily_business_summary": {
+        "handler": get_daily_business_summary,
+        "parameter_model":
+            DailyBusinessSummaryParameters,
+        "description": (
+            "Menampilkan ringkasan operasional dan "
+            "keuangan bisnis untuk satu tanggal"
+        ),
+        "roles": {"admin", "superadmin"},
+        "inject_role": True,
+    },
     
     "get_finance_transaction": {
         "handler": get_finance_transaction,

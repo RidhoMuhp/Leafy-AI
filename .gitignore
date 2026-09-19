@@ -31,3 +31,6 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .env
+skill-service/tests/wa-import-*.csv
+skill-service/tests/*-test-result.txt
+skill-service/tests/uji-*.txt

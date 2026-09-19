@@ -18,16 +18,17 @@ const {
 } = require("./jidService");
 
 const {
-  extractDocumentMetadata,
+  extractAttachmentMetadata,
   extractText,
 } = require("./messageService");
+
 const { shouldProcessMessage } = require("./groupPolicy");
 
 const logger = pino({
   level: process.env.WHATSAPP_LOG_LEVEL || "warn",
 });
 
-const MAX_DOCUMENT_SIZE = 5 * 1024 * 1024;
+const MAX_ATTACHMENT_SIZE =15 * 1024 * 1024;
 class WhatsAppService {
   constructor({ authPath, onMessage }) {
     this.authPath = path.resolve(authPath);
@@ -189,10 +190,10 @@ class WhatsAppService {
 
         const text = extractText(message);
 
-        const document =
-          extractDocumentMetadata(message);
+        const attachment =
+          extractAttachmentMetadata(message);
 
-        if (!text && !document) {
+        if (!text && !attachment) {
           continue;
         }
 
@@ -219,14 +220,17 @@ class WhatsAppService {
           message,
           identity,
           text,
-          document,
-          downloadDocument: () =>
-            this.downloadDocument(
+          attachment,
+          downloadAttachment: () =>
+            this.downloadAttachment(
               message,
-              document,
+              attachment,
             ),
           withTyping: (task) =>
-            this.withTyping(identity.chatJid, task),
+            this.withTyping(
+              identity.chatJid,
+              task,
+            ),
         });
       } catch (error) {
         logger.error(
@@ -237,67 +241,68 @@ class WhatsAppService {
     }
   }
 
-  async downloadDocument(
-  message,
-  document,
-) {
-  if (!this.socket) {
-    throw new Error(
-      "WhatsApp belum terhubung",
-    );
-  }
-
-  if (!document) {
-    throw new Error(
-      "Dokumen tidak ditemukan",
-    );
-  }
-
-  if (
-    document.fileLength > MAX_DOCUMENT_SIZE
-  ) {
-    const error = new Error(
-      "Ukuran dokumen melebihi batas 5 MB.",
-    );
-
-    error.name = "PublicDocumentError";
-    error.code = "DOCUMENT_TOO_LARGE";
-    error.isPublic = true;
-
-    throw error;
-  }
-
-  const buffer = await downloadMediaMessage(
+  async downloadAttachment(
     message,
-    "buffer",
-    {},
-    {
-      logger,
-      reuploadRequest:
-        this.socket.updateMediaMessage,
-    },
-  );
+    attachment,
+  ) {
+    if (!this.socket) {
+      throw new Error(
+        "WhatsApp belum terhubung",
+      );
+    }
 
-  if (!Buffer.isBuffer(buffer)) {
-    throw new Error(
-      "Hasil unduhan dokumen tidak valid",
+    if (!attachment) {
+      throw new Error(
+        "Lampiran tidak ditemukan",
+      );
+    }
+
+    if (
+      attachment.fileLength >
+      MAX_ATTACHMENT_SIZE
+    ) {
+      const error = new Error(
+        "Ukuran lampiran melebihi batas 15 MB.",
+      );
+
+      error.name = "PublicDocumentError";
+      error.code = "ATTACHMENT_TOO_LARGE";
+      error.isPublic = true;
+
+      throw error;
+    }
+
+    const buffer = await downloadMediaMessage(
+      message,
+      "buffer",
+      {},
+      {
+        logger,
+        reuploadRequest:
+          this.socket.updateMediaMessage,
+      },
     );
+
+    if (!Buffer.isBuffer(buffer)) {
+      throw new Error(
+        "Hasil unduhan lampiran tidak valid",
+      );
+    }
+
+    if (buffer.length > MAX_ATTACHMENT_SIZE) {
+      const error = new Error(
+        "Ukuran lampiran melebihi batas 15 MB.",
+      );
+
+      error.name = "PublicDocumentError";
+      error.code = "ATTACHMENT_TOO_LARGE";
+      error.isPublic = true;
+
+      throw error;
+    }
+
+    return buffer;
   }
-
-  if (buffer.length > MAX_DOCUMENT_SIZE) {
-    const error = new Error(
-      "Ukuran dokumen melebihi batas 5 MB.",
-    );
-
-    error.name = "PublicDocumentError";
-    error.code = "DOCUMENT_TOO_LARGE";
-    error.isPublic = true;
-
-    throw error;
-  }
-
-  return buffer;
-}
 
   async sendText(chatJid, text, quotedMessage = null) {
     if (!this.socket) {

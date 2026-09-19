@@ -145,14 +145,67 @@ class FindFollowupsParameters(
 
 
 OUTCOME_STATUS_MAP = {
-    "no_response": "follow_up",
     "replied": "contacted",
     "interested": "qualified",
     "follow_up": "follow_up",
     "converted": "won",
     "not_interested": "lost",
-    "invalid_contact": "lost",
 }
+
+
+CLIENT_STATUS_RANK = {
+    "prospect": 0,
+    "lead": 1,
+    "contacted": 2,
+    "follow_up": 3,
+    "qualified": 4,
+    "won": 5,
+}
+
+
+TERMINAL_CLIENT_STATUSES = {
+    "won",
+    "lost",
+}
+
+
+def resolve_client_status(
+    current_status: str,
+    outcome: str,
+    has_follow_up: bool,
+) -> str:
+    if current_status in TERMINAL_CLIENT_STATUSES:
+        return current_status
+
+    if outcome == "invalid_contact":
+        return current_status
+
+    if outcome == "no_response":
+        candidate_status = (
+            "follow_up"
+            if has_follow_up
+            else "contacted"
+        )
+    else:
+        candidate_status = OUTCOME_STATUS_MAP[
+            outcome
+        ]
+
+    if candidate_status == "lost":
+        return "lost"
+
+    current_rank = CLIENT_STATUS_RANK.get(
+        current_status,
+        0,
+    )
+    candidate_rank = CLIENT_STATUS_RANK[
+        candidate_status
+    ]
+
+    if candidate_rank < current_rank:
+        return current_status
+
+    return candidate_status
 
 
 def normalize_datetime(value: datetime) -> datetime:
@@ -197,9 +250,7 @@ def record_outreach(
         else None
     )
 
-    new_client_status = OUTCOME_STATUS_MAP[
-        outcome
-    ]
+
 
     client_statement = text(
         f"""
@@ -275,6 +326,18 @@ def record_outreach(
 
         if client is None:
             raise ClientNotFoundError
+        
+        new_client_status = resolve_client_status(
+            current_status=client["status"],
+            outcome=outcome,
+            has_follow_up=(
+                normalized_follow_up_at is not None
+            ),
+        )
+
+        status_changed = (
+            new_client_status != client["status"]
+        )
 
         insert_result = connection.execute(
             insert_statement,
@@ -293,13 +356,14 @@ def record_outreach(
 
         outreach_id = insert_result.lastrowid
 
-        connection.execute(
-            update_client_statement,
-            {
-                "client_id": client_id,
-                "status": new_client_status,
-            },
-        )
+        if status_changed:
+            connection.execute(
+                update_client_statement,
+                {
+                    "client_id": client_id,
+                    "status": new_client_status,
+                },
+            )
 
         outreach = connection.execute(
             outreach_statement,
@@ -315,7 +379,8 @@ def record_outreach(
             "name": client["name"],
             "previous_status": client["status"],
             "current_status": new_client_status,
-        },
+            "status_changed": status_changed,
+            },
         "outreach": dict(outreach),
         "recorded": True,
     }
