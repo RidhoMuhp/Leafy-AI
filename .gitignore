@@ -26,3 +26,11 @@ node_modules/
 api/node_modules/
 api/.env
 api/auth_info_baileys/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+skill-service/tests/wa-import-*.csv
+skill-service/tests/*-test-result.txt
+skill-service/tests/uji-*.txt

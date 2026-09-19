@@ -1,41 +1,26 @@
 {
-  "name": "api",
-  "version": "1.0.0",
-  "description": "",
+  "name": "leafy-ai-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Leafy AI Node.js orchestrator and WhatsApp service",
   "main": "src/server.js",
-  "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "commonjs",
+  "scripts": {
+    "dev": "nodemon",
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
   "dependencies": {
-    "@google/genai": "^2.13.0",
     "@whiskeysockets/baileys": "^7.0.0-rc14",
-    "bcryptjs": "^3.0.3",
-    "cors": "^2.8.6",
-    "csv-parser": "^3.2.1",
+    "axios": "^1.20.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "form-data": "^4.0.6",
     "groq-sdk": "^1.4.0",
-    "jsonwebtoken": "^9.0.3",
-    "mammoth": "^1.12.0",
-    "multer": "^2.2.0",
-    "mysql2": "^3.22.4",
-    "pdf-parse": "^2.4.5",
-    "pdf-parser": "^1.0.5",
-    "pdf2json": "^4.0.3",
     "pino": "^10.3.1",
-    "qrcode-terminal": "^0.12.0",
-    "xlsx": "^0.18.5"
+    "qrcode-terminal": "^0.12.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
-  },
-  "allowScripts": {
-    "@google/genai@2.13.0": true
   }
 }
