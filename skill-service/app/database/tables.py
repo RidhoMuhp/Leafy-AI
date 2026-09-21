@@ -19,63 +19,33 @@ TABLE_REGISTRY: dict[str, dict[str, TableDefinition]] = {
         "finance_categories": TableDefinition(
             physical_name="finance_categories",
             readable_columns=(
-                "id",
-                "category_code",
-                "name",
-                "transaction_type",
-                "is_active",
-                "created_at",
-                "updated_at",
+                "id", "category_code", "name",
+                "transaction_type", "is_active",
+                "created_at", "updated_at",
             ),
-            allowed_roles=frozenset(
-                {"admin", "superadmin"}
-            ),
+            allowed_roles=frozenset({"admin", "superadmin"}),
             default_order_column="id",
         ),
-
         "finance_transactions": TableDefinition(
             physical_name="finance_transactions",
             readable_columns=(
-                "id",
-                "transaction_code",
-                "transaction_type",
-                "category_id",
-                "client_id",
-                "counterparty",
-                "description",
-                "amount",
-                "currency",
-                "transaction_date",
-                "payment_method",
-                "reference_number",
-                "status",
-                "notes",
-                "created_at",
-                "updated_at",
-                "void_reason",
+                "id", "transaction_code", "transaction_type",
+                "category_id", "client_id", "counterparty",
+                "description", "amount", "currency",
+                "transaction_date", "payment_method",
+                "reference_number", "status", "notes",
+                "created_at", "updated_at", "void_reason",
                 "voided_at",
             ),
-            allowed_roles=frozenset(
-                {"admin", "superadmin"}
-            ),
+            allowed_roles=frozenset({"admin", "superadmin"}),
             default_order_column="id",
         ),
-                
         "clients": TableDefinition(
             physical_name="clients",
             readable_columns=(
-                "id",
-                "client_code",
-                "name",
-                "business_type",
-                "phone",
-                "email",
-                "city",
-                "source",
-                "status",
-                "notes",
-                "created_at",
-                "updated_at",
+                "id", "client_code", "name", "business_type",
+                "phone", "email", "city", "source", "status",
+                "notes", "created_at", "updated_at",
             ),
             allowed_roles=frozenset({"admin", "superadmin"}),
             default_order_column="id",
@@ -83,15 +53,9 @@ TABLE_REGISTRY: dict[str, dict[str, TableDefinition]] = {
         "outreach_logs": TableDefinition(
             physical_name="outreach_logs",
             readable_columns=(
-                "id",
-                "client_id",
-                "channel",
-                "direction",
-                "message_summary",
-                "outcome",
-                "contacted_at",
-                "follow_up_at",
-                "created_at",
+                "id", "client_id", "channel", "direction",
+                "message_summary", "outcome", "contacted_at",
+                "follow_up_at", "created_at",
             ),
             allowed_roles=frozenset({"admin", "superadmin"}),
             default_order_column="id",
@@ -99,15 +63,10 @@ TABLE_REGISTRY: dict[str, dict[str, TableDefinition]] = {
         "knowledge_documents": TableDefinition(
             physical_name="knowledge_documents",
             readable_columns=(
-                "id",
-                "document_code",
-                "original_name",
-                "safe_name",
-                "mime_type",
-                "file_size",
-                "status",
-                "created_at",
-                "updated_at",
+                "id", "document_code", "short_code",
+                "original_name", "safe_name", "mime_type",
+                "document_type", "file_size", "status",
+                "uploaded_by", "created_at", "updated_at",
             ),
             allowed_roles=frozenset({"admin", "superadmin"}),
             default_order_column="id",
@@ -115,12 +74,8 @@ TABLE_REGISTRY: dict[str, dict[str, TableDefinition]] = {
         "knowledge_chunks": TableDefinition(
             physical_name="knowledge_chunks",
             readable_columns=(
-                "id",
-                "document_id",
-                "chunk_index",
-                "content",
-                "token_count",
-                "created_at",
+                "id", "document_id", "chunk_index", "content",
+                "token_count", "created_at",
             ),
             allowed_roles=frozenset({"admin", "superadmin"}),
             default_order_column="id",
@@ -128,22 +83,16 @@ TABLE_REGISTRY: dict[str, dict[str, TableDefinition]] = {
         "pending_actions": TableDefinition(
             physical_name="pending_actions",
             readable_columns=(
-                "id",
-                "action_id",
-                "requested_by",
-                "action_type",
-                "database_id",
-                "resource_id",
-                "status",
-                "expires_at",
-                "confirmed_at",
-                "created_at",
+                "id", "action_id", "requested_by", "action_type",
+                "database_id", "resource_id", "status",
+                "expires_at", "confirmed_at", "created_at",
             ),
             allowed_roles=frozenset({"superadmin"}),
             default_order_column="id",
         ),
     },
 }
+
 
 def list_allowed_tables(
     database_id: str,
@@ -159,6 +108,7 @@ def list_allowed_tables(
         for table_id, definition in database_tables.items()
         if role in definition.allowed_roles
     }
+
 
 def get_table_definition(
     database_id: str,
@@ -179,4 +129,3 @@ def get_table_definition(
         raise TableAccessDeniedError
 
     return table
-

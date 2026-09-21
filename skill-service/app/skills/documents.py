@@ -11,6 +11,22 @@ from app.database.tables import get_table_definition
 class DocumentNotFoundError(Exception):
     pass
 
+class DocumentAccessDeniedError(Exception):
+    pass
+
+
+class AmbiguousDocumentReferenceError(
+    Exception
+):
+    def __init__(
+        self,
+        matches: list[dict[str, Any]],
+    ) -> None:
+        self.matches = matches
+
+        super().__init__(
+            "Referensi dokumen tidak unik"
+        )
 
 class DocumentParameters(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -63,9 +79,36 @@ class GetDocumentParameters(DocumentParameters):
     document_code: str = Field(
         min_length=5,
         max_length=64,
-        pattern=r"^DOC-[A-Z0-9]+$",
+        pattern=(
+            r"^(?:DOC-[A-Z0-9]+|"
+            r"[A-Z]{3}-[0-9]{6}-[0-9]{2})$"
+        ),
     )
 
+class DeleteDocumentParameters(
+    DocumentParameters
+):
+    document_reference: str = Field(
+        min_length=1,
+        max_length=255,
+    )
+
+    @field_validator(
+        "document_reference"
+    )
+    @classmethod
+    def normalize_reference(
+        cls,
+        value: str,
+    ) -> str:
+        normalized = value.strip()
+
+        if not normalized:
+            raise ValueError(
+                "Referensi dokumen wajib diisi"
+            )
+
+        return normalized
 
 class SearchKnowledgeParameters(DocumentParameters):
     search_text: str = Field(
@@ -75,7 +118,10 @@ class SearchKnowledgeParameters(DocumentParameters):
     document_code: str | None = Field(
         default=None,
         max_length=64,
-        pattern=r"^DOC-[A-Z0-9]+$",
+        pattern=(
+            r"^(?:DOC-[A-Z0-9]+|"
+            r"[A-Z]{3}-[0-9]{6}-[0-9]{2})$"
+        ),
     )
     limit: int = Field(
         default=5,
@@ -157,6 +203,10 @@ def list_documents(
                     LOWER(:search)
                 ) > 0
                 OR INSTR(
+                    LOWER(d.`short_code`),
+                    LOWER(:search)
+                ) > 0
+                OR INSTR(
                     LOWER(d.`original_name`),
                     LOWER(:search)
                 ) > 0
@@ -190,6 +240,8 @@ def list_documents(
         SELECT
             d.`id`,
             d.`document_code`,
+            d.`short_code`,
+            d.`document_type`,
             d.`original_name`,
             d.`safe_name`,
             d.`mime_type`,
@@ -209,6 +261,8 @@ def list_documents(
         GROUP BY
             d.`id`,
             d.`document_code`,
+            d.`short_code`,
+            d.`document_type`,
             d.`original_name`,
             d.`safe_name`,
             d.`mime_type`,
@@ -268,6 +322,8 @@ def get_document(
         SELECT
             d.`id`,
             d.`document_code`,
+            d.`short_code`,
+            d.`document_type`,
             d.`original_name`,
             d.`safe_name`,
             d.`mime_type`,
@@ -287,10 +343,15 @@ def get_document(
         FROM `{documents_table}` AS d
         LEFT JOIN `{chunks_table}` AS c
             ON c.`document_id` = d.`id`
-        WHERE d.`document_code` = :document_code
+        WHERE (
+            d.`document_code` = :document_code
+            OR d.`short_code` = :document_code
+        )
         GROUP BY
             d.`id`,
             d.`document_code`,
+            d.`short_code`,
+            d.`document_type`,
             d.`original_name`,
             d.`safe_name`,
             d.`mime_type`,
@@ -329,7 +390,7 @@ def get_document(
             raise DocumentNotFoundError(
                 document_code
             )
-
+            
         preview = connection.execute(
             preview_statement,
             {
@@ -349,6 +410,182 @@ def get_document(
         ),
     }
 
+def delete_document(
+    role: str,
+    actor_id: str,
+    database_id: str,
+    document_reference: str,
+) -> dict[str, Any]:
+    documents_table, chunks_table = (
+        ensure_document_access(
+            database_id,
+            role,
+        )
+    )
+
+    reference = (
+        document_reference.strip()
+    )
+
+    parameters: dict[str, Any] = {
+        "reference": reference,
+    }
+
+    normalized_reference = reference.upper()
+
+    if normalized_reference.startswith("DOC-"):
+        reference_condition = (
+            "d.`document_code` = :reference"
+        )
+        parameters["reference"] = normalized_reference
+    elif re.fullmatch(
+        r"[A-Z]{3}-[0-9]{6}-[0-9]{2}",
+        normalized_reference,
+    ):
+        reference_condition = (
+            "d.`short_code` = :reference"
+        )
+        parameters["reference"] = normalized_reference
+    elif re.fullmatch(
+        r"[A-Z]{3}-[0-9]{6}",
+        normalized_reference,
+    ):
+        reference_condition = (
+            "d.`short_code` LIKE :reference_prefix"
+        )
+        parameters["reference_prefix"] = (
+            f"{normalized_reference}-%"
+        )
+    else:
+        reference_condition = """
+        (
+            LOWER(d.`original_name`)
+                = LOWER(:reference)
+            OR LOWER(d.`safe_name`)
+                = LOWER(:reference)
+        )
+        """
+
+    find_statement = text(
+        f"""
+        SELECT
+            d.`id`,
+            d.`document_code`,
+            d.`short_code`,
+            d.`document_type`,
+            d.`original_name`,
+            d.`safe_name`,
+            d.`mime_type`,
+            d.`status`,
+            d.`uploaded_by`,
+            d.`created_at`
+        FROM `{documents_table}` AS d
+        WHERE {reference_condition}
+        ORDER BY d.`id` DESC
+        LIMIT 10
+        """
+    )
+
+    delete_chunks_statement = text(
+        f"""
+        DELETE FROM `{chunks_table}`
+        WHERE `document_id` = :document_id
+        """
+    )
+
+    delete_document_statement = text(
+        f"""
+        DELETE FROM `{documents_table}`
+        WHERE `id` = :document_id
+        """
+    )
+
+    with database_transaction(
+        database_id,
+        role,
+    ) as connection:
+        matches = connection.execute(
+            find_statement,
+            parameters,
+        ).mappings().all()
+
+        if not matches:
+            raise DocumentNotFoundError(
+                reference
+            )
+
+        if role != "superadmin":
+            owned_matches = [
+                row
+                for row in matches
+                if row["uploaded_by"] == actor_id
+            ]
+
+            if not owned_matches:
+                raise DocumentAccessDeniedError(
+                    reference
+                )
+
+            matches = owned_matches
+
+        if len(matches) > 1:
+            raise (
+                AmbiguousDocumentReferenceError(
+                    [
+                        {
+                            "document_code":
+                                row[
+                                    "document_code"
+                                ],
+                            "short_code":
+                                row[
+                                    "short_code"
+                                ],
+                            "original_name":
+                                row[
+                                    "original_name"
+                                ],
+                        }
+                        for row in matches
+                    ]
+                )
+            )
+
+        document = dict(matches[0])
+
+        deleted_chunks = (
+            connection.execute(
+                delete_chunks_statement,
+                {
+                    "document_id":
+                        document["id"],
+                },
+            ).rowcount
+        )
+
+        deleted_documents = (
+            connection.execute(
+                delete_document_statement,
+                {
+                    "document_id":
+                        document["id"],
+                },
+            ).rowcount
+        )
+
+        if deleted_documents != 1:
+            raise DocumentNotFoundError(
+                reference
+            )
+
+    return {
+        "database_id": database_id,
+        "deleted": True,
+        "document": document,
+        "deleted_chunk_count": int(
+            deleted_chunks or 0
+        ),
+    }
 
 def create_search_snippet(
     content: str,
@@ -496,7 +733,12 @@ def search_knowledge(
 
     if document_code is not None:
         conditions.append(
-            "d.`document_code` = :document_code"
+            """
+            (
+                d.`document_code` = :document_code
+                OR d.`short_code` = :document_code
+            )
+            """
         )
         parameters["document_code"] = (
             document_code
@@ -520,6 +762,8 @@ def search_knowledge(
         f"""
         SELECT
             d.`document_code`,
+            d.`short_code`,
+            d.`document_type`,
             d.`original_name`,
             d.`mime_type`,
             c.`chunk_index`,

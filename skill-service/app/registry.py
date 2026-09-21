@@ -70,9 +70,11 @@ from app.skills.business_summary import (
 )
 
 from app.skills.documents import (
+    DeleteDocumentParameters,
     GetDocumentParameters,
     ListDocumentsParameters,
     SearchKnowledgeParameters,
+    delete_document,
     get_document,
     list_documents,
     search_knowledge,
@@ -91,8 +93,20 @@ class InvalidSkillParametersError(Exception):
 
 
 SKILL_REGISTRY: dict[str, dict[str, Any]] = {
-    
-        "list_documents": {
+
+    "delete_document": {
+        "handler": delete_document,
+        "parameter_model": DeleteDocumentParameters,
+        "description": (
+            "Menghapus dokumen knowledge berdasarkan "
+            "kode singkat, kode internal, atau nama file"
+        ),
+        "roles": {"admin", "superadmin"},
+        "inject_role": True,
+        "inject_actor": True,
+    },
+
+    "list_documents": {
         "handler": list_documents,
         "parameter_model": ListDocumentsParameters,
         "description": (

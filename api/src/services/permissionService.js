@@ -584,7 +584,7 @@ const SKILLS = Object.freeze({
     },
   },
 
-    list_documents: {
+  list_documents: {
     roles: ["admin", "superadmin"],
     parameters: {
       database_id: {
@@ -625,7 +625,22 @@ const SKILLS = Object.freeze({
       },
       document_code: {
         type: "string",
-        pattern: /^DOC-[A-Z0-9]{20}$/,
+        pattern:
+          /^(?:DOC-[A-Z0-9]+|[A-Z]{3}-\d{6}-\d{2})$/,
+      },
+    },
+  },
+
+  delete_document: {
+    roles: ["admin", "superadmin"],
+    parameters: {
+      database_id: {
+        type: "string",
+        allowed: ["leafy_core"],
+      },
+      document_reference: {
+        type: "string",
+        pattern: /^[^\r\n]{1,255}$/,
       },
     },
   },
@@ -644,7 +659,8 @@ const SKILLS = Object.freeze({
       document_code: {
         type: "string",
         required: false,
-        pattern: /^DOC-[A-Z0-9]{20}$/,
+        pattern:
+          /^(?:DOC-[A-Z0-9]+|[A-Z]{3}-\d{6}-\d{2})$/,
       },
       limit: {
         type: "integer",
@@ -693,10 +709,11 @@ const AGENT_SKILLS = Object.freeze({
     "preview_void_finance_transaction",
   ]),
 
-    document: Object.freeze([
+  document: Object.freeze([
     "list_documents",
     "get_document",
     "search_knowledge",
+    "delete_document",
   ]),
 });
 

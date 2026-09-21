@@ -58,7 +58,11 @@ from app.skills.document_ingestion import (
     ingest_document,
 )
 
-from app.skills.documents import DocumentNotFoundError
+from app.skills.documents import (
+    AmbiguousDocumentReferenceError,
+    DocumentAccessDeniedError,
+    DocumentNotFoundError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -261,6 +265,15 @@ async def ingest_knowledge_document(
         "superadmin",
     ] = Form(...),
     database_id: str = Form(...),
+    actor_id: str = Form(
+        min_length=64,
+        max_length=64,
+        pattern=r"^[a-f0-9]{64}$",
+    ),
+    message_timestamp: str | None = Form(
+        default=None,
+        max_length=64,
+),
 ):
     try:
         file_name = file.filename or ""
@@ -271,13 +284,15 @@ async def ingest_knowledge_document(
 
         result = ingest_document(
             role=role,
+            actor_id=actor_id,
             database_id=database_id,
-            file_name=file_name,
+            file_name=file.filename or "document",
             supplied_mime_type=(
                 file.content_type
                 or "application/octet-stream"
             ),
             file_content=file_content,
+            message_timestamp=message_timestamp,
         )
 
         return {
@@ -462,6 +477,27 @@ def execute(payload: SkillRequest):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Dokumen tidak ditemukan",
         ) from error   
+
+    except DocumentAccessDeniedError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Anda tidak memiliki izin untuk "
+                "menghapus dokumen tersebut"
+            ),
+        ) from error
+
+    except AmbiguousDocumentReferenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": (
+                    "Nama dokumen tidak unik. "
+                    "Gunakan kode dokumen."
+                ),
+                "matches": error.matches,
+            },
+        ) from error
         
     except ClientDeleteRestrictedError as error:
         raise HTTPException(
